@@ -1,6 +1,7 @@
 # Lithia 
-A compiler and bytecode-vm written in rust for lithia (still to be created), a language oriented on
-Rust's amazing syntax (at least I hope it will be).
+A compiler and bytecode-vm written in Rust for lithia (still to be created).
+
+Lithia will be inspired by Rust's amazing syntactical features (minus the lifetime and borrowing).
 
 last-update counter of shame: `21/09/2022`<br>
 (please excuse my inability to update readmes)
@@ -35,8 +36,9 @@ to always have a runnable and testable version.
 (the last two steps might be swappable)
 
 ### General goals:
-Get something runnable without any dependencies that have something to do with compilation and code execution.
-
+I want to create a working (preferable at least semi-usable) language *without* the usage of 
+any crates that specifically aid in compiler building or vm code execution. Other crates that only do 
+general work, such as for example memmap, rand, chrono or cli crates are permitted.
 
 ### General todos:
 - [ ] refining language and vm:
