@@ -65,9 +65,9 @@ pub(crate) fn example() -> Vec<u8> {
 
 
 
-    println!("{:#?}", ast);
+    println!("{}", ast);
 
-    let mut compiler = Compiler::new(HashMap::from([
+    let compiler = Compiler::new(HashMap::from([
          ("i32::lt".to_string(), (vec![Type::I32, Type::I32], vec![Type::Bool])),
          ("i32::add".to_string(), (vec![Type::I32, Type::I32], vec![Type::I32])),
         ("i32::to_string".to_string(), (vec![Type::I32], vec![Type::String])),
