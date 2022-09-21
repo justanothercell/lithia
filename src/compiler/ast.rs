@@ -48,12 +48,12 @@ impl Display for Expr {
                     format!("{{\n{}\n{}\n}}", stmts.iter().map(|s| format!("{}", s)).collect::<Vec<String>>().join("\n"), e)
                 }
                 else{
-                    format!("{}", stmts.iter().map(|s| format!("{}", s)).collect::<Vec<String>>().join("\n"))
+                    format!("{{\n{}\n}}", stmts.iter().map(|s| format!("{}", s)).collect::<Vec<String>>().join("\n"))
                 }
             },
             Expr::Variable(var) => format!("{}", var.0),
             Expr::Value(val) => format!("{:?}", val),
-            Expr::LoopWhile(cond, body) => format!("while {} {{\n{}\n}}", cond, body),
+            Expr::LoopWhile(cond, body) => format!("while {} {{\n{}\n}}", cond, textwrap::indent(&format!("{}", body), "    ")),
             Expr::Empty => format!("")
         })
     }

@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 memmap = "0.7.0"
+# to format ast prettily
+textwrap = "0.15.0"
