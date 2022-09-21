@@ -1,5 +1,6 @@
 #![feature(fmt_helpers_for_derive)]
 #![feature(fn_traits)]
+#![feature(box_patterns)]
 
 extern crate core;
 
@@ -11,6 +12,7 @@ use memmap::Mmap;
 use compiler::ast::*;
 use compiler::bin_builder::{BinBuilder, JmpType};
 use vm::virtual_machine::{Executor, Word};
+use crate::compiler::compiler::Compiler;
 use crate::variable::Ident;
 
 mod vm;
@@ -20,11 +22,8 @@ mod variable;
 mod ast_examples;
 
 fn main() {
-    let ast = ast_examples::while_loop::example();
-
-    println!("{:#?", ast);
-
-    let code = bytecode_examples::for_loop::example();
+    let code = ast_examples::while_loop::example();
+    //let code = bytecode_examples::for_loop::example();
 
     {
         let mut file = File::create("test.bin").expect("Could not create file");

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
-use std::hash::Hash;
 use crate::Word;
 use crate::variable::{Type, Value};
 
+#[derive(Debug, Clone)]
 pub(crate) struct VarId(pub(crate) usize);
+#[derive(Debug, Clone)]
 pub(crate) struct Marker(pub(crate) usize);
 
 impl VarId {

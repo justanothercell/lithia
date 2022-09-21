@@ -4,7 +4,7 @@ use crate::variable::{Ident, Type, Value};
 
 #[derive(Debug, Clone)]
 pub(crate) struct FuncCall {
-    pub(crate) name: Ident,
+    pub(crate) ident: Ident,
     pub(crate) args: Vec<Expr>
 }
 
@@ -14,15 +14,15 @@ pub(crate) enum Expr {
     Stmts(Vec<Stmt>, Option<Box<Expr>>, Type),
     Variable(Ident),
     Value(Value),
-    LoopWhile(Expr, Expr),
+    LoopWhile(Box<Expr>, Box<Expr>),
     Empty
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum Stmt {
-    Create(Ident),
+    Create(Ident, Expr),
     Delete(Ident),
     Assign(Ident, Expr),
-    Call(FuncCall),
+    Expr(Expr),
     Return(Expr)
 }

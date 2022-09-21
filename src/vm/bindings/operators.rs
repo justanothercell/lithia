@@ -26,35 +26,31 @@ macro_rules! operator_borrow {
 
 macro_rules! type_ops {
     ($identifier: ty, $variant: tt) => {
-        pub(crate) fn $identifier_ops() -> HashMap<String, Value> {
-            HashMap::from(
-                [
-                    operator!(concat!(stringify!($identifier), "::add"), $variant, <$identifier>::add, $variant),
-                    operator!(concat!(stringify!($identifier), "::sub"), $variant, <$identifier>::sub, $variant),
-                    operator!(concat!(stringify!($identifier), "::mul"), $variant, <$identifier>::mul, $variant),
-                    operator!(concat!(stringify!($identifier), "::div"), $variant, <$identifier>::div, $variant),
+        [
+            operator!(concat!(stringify!($identifier), "::add"), $variant, <$identifier>::add, $variant),
+            operator!(concat!(stringify!($identifier), "::sub"), $variant, <$identifier>::sub, $variant),
+            operator!(concat!(stringify!($identifier), "::mul"), $variant, <$identifier>::mul, $variant),
+            operator!(concat!(stringify!($identifier), "::div"), $variant, <$identifier>::div, $variant),
 
-                    operator_borrow!(concat!(stringify!($identifier), "::eq"), $variant, <$identifier>::eq, Bool),
-                    operator_borrow!(concat!(stringify!($identifier), "::lt"), $variant, <$identifier>::lt, Bool),
-                    operator_borrow!(concat!(stringify!($identifier), "::le"), $variant, <$identifier>::le, Bool),
-                    operator_borrow!(concat!(stringify!($identifier), "::gt"), $variant, <$identifier>::gt, Bool),
-                    operator_borrow!(concat!(stringify!($identifier), "::ge"), $variant, <$identifier>::ge, Bool),
+            operator_borrow!(concat!(stringify!($identifier), "::eq"), $variant, <$identifier>::eq, Bool),
+            operator_borrow!(concat!(stringify!($identifier), "::lt"), $variant, <$identifier>::lt, Bool),
+            operator_borrow!(concat!(stringify!($identifier), "::le"), $variant, <$identifier>::le, Bool),
+            operator_borrow!(concat!(stringify!($identifier), "::gt"), $variant, <$identifier>::gt, Bool),
+            operator_borrow!(concat!(stringify!($identifier), "::ge"), $variant, <$identifier>::ge, Bool),
 
-                    (concat!(stringify!($identifier), "::to_string").to_string(), Value::Fn(|args| {
-                        if let [Value::$variant(u1)] = args[0..1] {
-                            return vec![Value::String(<$identifier>::to_string(&u1))];
-                        }
-                        panic!("Invalid args {:?} for {}::not", args, stringify!($identifier))
-                    }, vec![Type::$variant], vec![Type::String]))
-                ]
-            )
-        }
+            (concat!(stringify!($identifier), "::to_string").to_string(), Value::Fn(|args| {
+                if let [Value::$variant(u1)] = args[0..1] {
+                    return vec![Value::String(<$identifier>::to_string(&u1))];
+                }
+                panic!("Invalid args {:?} for {}::not", args, stringify!($identifier))
+            }, vec![Type::$variant], vec![Type::String]))
+        ]
     };
 }
 
 pub(crate) fn bindings() -> HashMap<String, Value> {
     let mut num_ops = HashMap::new();
-    num_ops.extend(type_ops!(u8, U8)));
+    num_ops.extend(HashMap::from(type_ops!(u8, U8)));
     num_ops.extend(HashMap::from(type_ops!(u16, U16)));
     num_ops.extend(HashMap::from(type_ops!(u32, U32)));
     num_ops.extend(HashMap::from(type_ops!(u64, U64)));

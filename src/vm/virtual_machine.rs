@@ -28,6 +28,7 @@ use crate::variable::{Ident, Type, Value};
 #[repr(u8)]
 #[derive(Debug, Clone)]
 pub(crate) enum Word {
+    Noop,
     SetVar,
     Delete,
     Push,
@@ -97,39 +98,43 @@ impl Executor {
                 self.frame().prog_ptr += 1;
                 next
             } {
-                //SetVar
+                //Noop
                 0 => {
+                    log_step!("no-op instruction")
+                }
+                //SetVar
+                1 => {
                     let id = self.next_in(u8_id) as usize;
                     let val = self.stack.pop().expect("Stack was empty");
                     self.frame().locals.insert(id, val);
                     log_step!("set variable {}", id)
                 }
                 //Delete
-                1 => {
+                2 => {
                     let id = self.next_in(u8_id) as usize;
                     let _ = self.frame().locals.remove(&id);
                     log_step!("deleted variable {}", id)
                 }
                 //Push
-                2 => {
+                3 => {
                     let val = self.next_in(Value::from_u8);
                     log_step!("pushed val {:?}", val);
                     self.stack.push(val);
                 }
                 //PushVar
-                3 => {
+                4 => {
                     let id = self.next_in(u8_id) as usize;
                     let val = self.frame().locals.get(&id).expect(&format!("Unable to find local variable with id {}", id)).clone();
                     self.stack.push(val);
                     log_step!("pushed var {}", id)
                 }
                 //Pop
-                4 => {
+                5 => {
                     let v = self.stack.pop().expect("Stack was empty");
                     log_step!("popped val {:?}", v);
                 }
                 //Call
-                5 => {
+                6 => {
                     let id = self.next_in(u8_id) as usize;
                     let func = self.frame().locals.get(&id).expect(&format!("Unable to find local (function) variable with id {}", id)).clone();
                     if let Value::Fn(fun, t_args, _t_ret) = func {
@@ -145,13 +150,13 @@ impl Executor {
                     log_step!("called function {}", id)
                 }
                 //Frame
-                6 => {
+                7 => {
                     let p = self.frame().prog_ptr;
                     self.stack_frames.push(Frame::new(p));
                     log_step!("pushed stack frame")
                 }
                 //Return
-                7 => {
+                8 => {
                     self.stack_frames.pop().expect("Unable to pop frame");
                     if self.stack_frames.len() > 0 {
                         log_step!("popped stack frame")
@@ -162,7 +167,7 @@ impl Executor {
                     }
                 }
                 //Extern
-                8 => {
+                9 => {
                     let id = self.next_in(|p|Type::u8_uint(p, 4)) as usize;
                     let name = self.next_in(Type::u8_str);
                     let signature = self.next_in(Type::from_u8);
@@ -171,13 +176,13 @@ impl Executor {
                     log_step!("loaded extern {} {:?} as {}", name, signature, id);
                 }
                 //Jump
-                9 => {
+                10 => {
                     let dest = self.next_in(|p|Type::u8_uint(p, 4)) as usize;
                     self.frame().prog_ptr = dest;
                     log_step!("jumped to {}", dest)
                 }
                 //JumpIf
-                10 => {
+                11 => {
                     let v = self.stack.pop().expect("Stack was empty");
                     let dest = self.next_in(|p|Type::u8_uint(p, 4)) as usize;
                     if let Value::Bool(b) = v {
@@ -194,7 +199,7 @@ impl Executor {
                     }
                 }
                 //JumpUnless
-                11 => {
+                12 => {
                     let v = self.stack.pop().expect("Stack was empty");
                     let dest = self.next_in(|p|Type::u8_uint(p, 4)) as usize;
                     if let Value::Bool(b) = v {
@@ -211,7 +216,7 @@ impl Executor {
                     }
                 }
                 //Marker
-                12 => {
+                13 => {
                     self.current_marker = self.next_in(|p|Type::u8_uint(p, 8)) as usize;
                     log_step!("set marker to {}", self.current_marker)
                 }

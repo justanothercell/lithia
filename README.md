@@ -14,14 +14,14 @@ last-update counter of shame: `21/09/2022`<br>
 - [ ] Converting the code into token/ast tree
 - [ ] (Optional:) Simplify/Convert high level constructs to more primitive representation
 - [ ] Type and variable checking the ast for validity
-- [ ] Converting ast to bytecode representation<br>
-- [x] (currently writing bytecode manually, see [bytecode examples](src/bytecode_examples))
+- [x] Converting ast to bytecode representation<br>
+- [x] (also able to write bytecode manually, see [bytecode examples](src/bytecode_examples))
 - [x] Writing bytecode to file
 
 ### Steps to run bytecode (mostly complete)
 - [x] Load bytes into memmap
 - [x] decoding bytes and running sequentially
-- [ ] throwing error and aborting peacefully, returning stack trace position instead of crashing <br>
+- [ ] throwing error and aborting peacefully (in case of some fault), returning stack trace position instead of crashing <br>
   (using markers and a link to the actual source to generate stacktrace)
 
 ### Implementing progress
@@ -29,7 +29,7 @@ The implementation is done "backwards", aka starting at the vm and ending with t
 to always have a runnable and testable version.
 - [x] VM 
 - [x] byte code builder
-- [ ] compiling ast to byte code
+- [x] compiling ast to byte code
 - [ ] type checking and analyzing ast for validity
 - [ ] parsing code to ast
 
@@ -50,7 +50,7 @@ general work, such as for example memmap, rand, chrono or cli crates are permitt
     - [ ] traits/interfaces (only ast side luckily, vm doesn't know of this at all)
 - [ ] mapping stdlib (a bit at a time, whenever needed)
   - [ ] proper stdlib layout 
-  - [ ] basic operators for primitive types (+-*/ .to_string())
+  - [x] basic operators for primitive types (+-*/ .to_string())
   - [ ] io
     - [x] println
     - [x] input
