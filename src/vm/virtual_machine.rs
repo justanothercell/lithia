@@ -18,12 +18,9 @@ end scope_global
  */
 
 use std::collections::HashMap;
-use std::hash::Hash;
-use std::mem::transmute;
-use std::ops::Deref;
 use std::time::{Duration, SystemTime};
 use memmap::Mmap;
-use crate::variable::{Ident, Type, Value};
+use crate::variable::{Type, Value};
 
 #[repr(u8)]
 #[derive(Debug, Clone)]
@@ -53,7 +50,6 @@ impl Word {
 #[derive(Debug)]
 pub(crate) struct Frame {
     pub(crate) locals: HashMap<usize, Value>,
-    pub(crate) externs: HashMap<Ident, Value>,
     pub(crate) prog_ptr: usize
 }
 
@@ -61,7 +57,6 @@ impl Frame {
     fn new(ptr: usize) -> Self{
         Frame {
             locals: Default::default(),
-            externs: Default::default(),
             prog_ptr: ptr
         }
     }
@@ -130,8 +125,8 @@ impl Executor {
                 }
                 //Pop
                 5 => {
-                    let v = self.stack.pop().expect("Stack was empty");
-                    log_step!("popped val {:?}", v);
+                    let _v = self.stack.pop().expect("Stack was empty");
+                    log_step!("popped val {:?}", _v);
                 }
                 //Call
                 6 => {
@@ -170,7 +165,7 @@ impl Executor {
                 9 => {
                     let id = self.next_in(|p|Type::u8_uint(p, 4)) as usize;
                     let name = self.next_in(Type::u8_str);
-                    let signature = self.next_in(Type::from_u8);
+                    let _signature = self.next_in(Type::from_u8);
                     let ex = self.externs.get(&name).expect(&format!("Could not find extern function {}", name)).clone();
                     self.frame().locals.insert(id, ex);
                     log_step!("loaded extern {} {:?} as {}", name, signature, id);

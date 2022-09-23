@@ -1,10 +1,13 @@
 #![feature(fmt_helpers_for_derive)]
 #![feature(fn_traits)]
+#![feature(pattern)]
 #![feature(box_patterns)]
+#![feature(try_blocks)]
+#![feature(try_trait_v2)]
+#![feature(try_trait_v2_yeet)]
 
 extern crate core;
 
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::ops::Deref;
@@ -16,14 +19,17 @@ use crate::compiler::compiler::Compiler;
 use crate::variable::Ident;
 
 mod vm;
-mod bytecode_examples;
 mod compiler;
 mod variable;
-mod ast_examples;
+mod codegen_examples;
+mod returnable;
 
 fn main() {
-    let code = ast_examples::while_loop::example();
-    //let code = bytecode_examples::for_loop::example();
+
+    let code = codegen_examples::code::example("adder_if.li");
+    println!();
+    //let code = codegen_examples::ast::while_loop::example();
+    //let code = codegen_examples::bytecode::for_loop::example();
 
     {
         let mut file = File::create("test.bin").expect("Could not create file");

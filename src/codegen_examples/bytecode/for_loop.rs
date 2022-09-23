@@ -2,6 +2,7 @@ use crate::{BinBuilder, JmpType};
 use crate::variable::Value::String;
 use crate::variable::{Type, Value};
 
+#[allow(dead_code)]
 pub(crate) fn example() -> Vec<u8>{
     let mut builder = BinBuilder::new();
 

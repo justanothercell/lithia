@@ -1,8 +1,6 @@
 use std::fmt::Debug;
 use std::collections::HashMap;
 
-type Args = Vec<Arg>;
-
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub(crate) struct Ident(pub(crate) String);
 
@@ -305,7 +303,7 @@ impl Value {
             Value::U64(u64) => Type::uint_u8(u64 as u128, 8),
             Value::U128(u128) => Type::uint_u8(u128, 16),
             Value::F32(f32) => unimplemented!(),
-            Value::F64(ff64) => unimplemented!(),
+            Value::F64(f64) => unimplemented!(),
             Value::Bool(bool) => if bool { vec![1] } else { vec![0] },
             Value::String(string) => Type::str_u8(&string),
             Value::Tuple(_) => unimplemented!(),

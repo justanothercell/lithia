@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use crate::{Compiler, Expr, FuncCall, Ident, Stmt};
+use crate::compiler::compiler::Loc;
 use crate::variable::{Type, Value};
 
 pub(crate) fn example() -> Vec<u8> {
@@ -14,16 +15,16 @@ pub(crate) fn example() -> Vec<u8> {
 
     let ast = Expr::Stmts(vec![
         // i = 0
-        Stmt::Create(var_i.clone(), Expr::Value(Value::I32(0))),
+        Stmt::Create(var_i.clone(), Expr::Value(Value::I32(0), Loc::none()), Loc::none()),
         Stmt::Expr(Expr::LoopWhile(
             // condition: i < 10
             Box::from(Expr::Call(FuncCall {
                 ident: i32_lt.clone(),
                 args: vec![
-                    Expr::Variable(var_i.clone()),
-                    Expr::Value(Value::I32(10))
+                    Expr::Variable(var_i.clone(), Loc::none()),
+                    Expr::Value(Value::I32(10), Loc::none())
                 ]
-            })),
+            }, Loc::none())),
             // === body ===
             Box::from(Expr::Stmts(vec![
                 Stmt::Expr(Expr::Call(
@@ -31,37 +32,37 @@ pub(crate) fn example() -> Vec<u8> {
                         ident: println.clone(),
                         args: vec![
                             Expr::Call(
-                                FuncCall{
+                                FuncCall {
                                     ident: string_join.clone(),
                                     args: vec![
-                                        Expr::Value(Value::String("Counting: ".to_string())),
+                                        Expr::Value(Value::String("Counting: ".to_string()), Loc::none()),
                                         Expr::Call(
                                             FuncCall {
                                                 ident: i32_to_string.clone(),
                                                 args: vec![
-                                                    Expr::Variable(var_i.clone())
+                                                    Expr::Variable(var_i.clone(), Loc::none())
                                                 ]
-                                            }
+                                            }, Loc::none()
                                         )
                                     ]
-                                }
+                                }, Loc::none()
                             )
                         ]
-                    }
-                )),
+                    }, Loc::none()
+                ), Loc::none()),
                 // i += 1
                 Stmt::Assign(var_i.clone(), Expr::Call(
                     FuncCall {
                         ident: i32_add.clone(),
                         args: vec![
-                            Expr::Variable(var_i.clone()),
-                            Expr::Value(Value::I32(1))
+                            Expr::Variable(var_i.clone(), Loc::none()),
+                            Expr::Value(Value::I32(1), Loc::none())
                         ]
-                    }
-                ))
-            ], None, Type::Empty))
-        ))
-    ], None, Type::Empty);
+                    }, Loc::none()
+                ), Loc::none())
+            ], None, Type::Empty, Loc::none())), Loc::none()
+        ), Loc::none())
+    ], None, Type::Empty, Loc::none());
 
 
 
@@ -74,5 +75,5 @@ pub(crate) fn example() -> Vec<u8> {
         ("string::join".to_string(), (vec![Type::String, Type::String], vec![Type::String])),
         ("println".to_string(), (vec![Type::String], vec![])),
     ]));
-    compiler.compile(ast)
+    compiler.compile(ast).expect("Error compiling!")
 }
