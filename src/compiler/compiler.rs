@@ -37,7 +37,7 @@ impl Compiler {
     fn compile_ast(&mut self, ast: Expr, builder: &mut BinBuilder) -> Result<(), ParseError> {
         match ast {
             Expr::Call(func, loc) => {
-                let fn_id = if let Some(fn_id) = self.variables.get(&func.ident.0) {
+                let fn_id = if let Some(fn_id) = self.needed_externs.get(&func.ident.0) {
                     fn_id.clone()
                 }
                 else {
@@ -149,6 +149,8 @@ impl Error for ParseError {
 pub(crate) struct Loc {
     pub(crate) original: String,
     pub(crate) index: usize,
+    pub(crate) line: usize,
+    pub(crate) index_in_line: usize
 }
 
 impl Display for Loc {
@@ -159,13 +161,13 @@ impl Display for Loc {
 
 impl Debug for Loc {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Loc({})", self.index)
+        write!(f, "Loc({}:{})", self.line, self.index_in_line)
     }
 }
 
 impl Loc {
     pub(crate) fn none() -> Self {
-        Loc { original: String::new(), index: 0 }
+        Loc { original: String::new(), index: 0, line: 0, index_in_line: 0 }
     }
 
     pub(crate) fn error(&self, msg: String) -> ParseError {

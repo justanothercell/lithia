@@ -129,6 +129,20 @@ pub(crate) fn tokenize(code: &str) -> Result<Tokens, ParseError> {
         else if c == '"' {
             tokens.push(tokenize_string(&mut input_iter))
         }
+        else if c == '/' {
+            input_iter.next();
+            match input_iter.peek() {
+                Some('*') => {
+                    input_iter.next();
+                    skip_block_comment(&mut input_iter)
+                },
+                Some('/') => {
+                    input_iter.next();
+                    skip_line_comment(&mut input_iter)
+                }
+                _ => ()
+            }
+        }
         else if c.is_ascii_digit() {
             tokens.push(tokenize_number_literal(&mut input_iter)?)
         }
@@ -142,6 +156,25 @@ pub(crate) fn tokenize(code: &str) -> Result<Tokens, ParseError> {
     tokens.push(Token::EOF(input_iter.here()));
 
     Ok(Tokens(tokens))
+}
+
+fn skip_line_comment(input_iter: &mut ParserIter) {
+    while let Some(c) = input_iter.next() {
+        if c == '\n' {
+            break;
+        }
+    }
+}
+
+fn skip_block_comment(input_iter: &mut ParserIter) {
+    while let Some(c) = input_iter.next() {
+        if c == '*' {
+            if let Some('/') = input_iter.peek() {
+                input_iter.next();
+                break;
+            }
+        }
+    }
 }
 
 fn tokenize_string(input_iter: &mut ParserIter) -> Token{
@@ -226,7 +259,9 @@ fn tokenize_number_literal(input_iter: &mut ParserIter) -> Result<Token, ParseEr
 struct ParserIter<'a> {
     original: String,
     iter: Peekable<Chars<'a>>,
-    index: usize
+    index: usize,
+    line: usize,
+    index_in_line: usize
 }
 
 impl ParserIter<'_> {
@@ -234,13 +269,25 @@ impl ParserIter<'_> {
         ParserIter {
             original: input.clone().to_string(),
             iter: input.chars().peekable(),
-            index: 0
+            index: 0,
+            line: 1,
+            index_in_line: 0
         }
     }
 
     fn next(&mut self) -> Option<char>{
-        self.index += 1;
-        self.iter.next()
+        let oc = self.iter.next();
+        if let Some(c) = oc {
+            self.index += 1;
+            if c == '\n' {
+                self.line += 1;
+                self.index_in_line = 0;
+            }
+            else {
+                self.index_in_line += 1;
+            }
+        }
+        oc
     }
 
     fn peek(&mut self) -> Option<&char>{
@@ -250,7 +297,9 @@ impl ParserIter<'_> {
     fn here(&self) -> Loc {
         Loc {
             original: self.original.clone(),
-            index: self.index
+            index: self.index,
+            line: self.line,
+            index_in_line: self.index_in_line
         }
     }
 }

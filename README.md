@@ -4,14 +4,15 @@ A compiler and bytecode-vm written in Rust for lithia (still to be created).
 Lithia will be inspired by Rust's amazing syntactical features (minus the lifetime and borrowing).
 
 last-update counter of shame: `23/09/2022`<br>
-(please excuse my inability to update readmes)
+(please excuse my inability to update readmes consistently)
 
 ### What works right now
-- Running bytecode on the vm
-- Generating bytecode semi-manually (like assembler but with tools and in code, see [bytecode examples](src/bytecode_examples))
-- converting (some) code to tokens
-- converting (very few) tokens to ast
-- Converting (some) ast to bytecode
+- [x] Running bytecode on the vm
+- [x] Generating bytecode semi-manually (like assembler but with tools and in code, see [bytecode examples](src/bytecode_examples))
+- [x] converting (some) code to tokens
+- [x] converting (very few) tokens to ast
+- [x] Converting (some) ast to bytecode
+- [x] Running the adder and print parts of [adder_id.li](src/codegen_examples/code/v1/adder_if.li)
 
 ### Steps of compilation
 - [x] Converting the code into tokens

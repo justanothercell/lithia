@@ -2,32 +2,15 @@ use std::iter::Peekable;
 use std::vec::IntoIter;
 use crate::compiler::compiler::{Loc, ParseError};
 use crate::compiler::tokenizer::{Bracket, Side, Token, Tokens, value_from_numer_literal};
-use crate::{Expr, Ident, Stmt};
+use crate::{Expr, FuncCall, Ident, Stmt};
 use crate::returnable::Returnable;
-use crate::variable::Value;
+use crate::variable::{Type, Value};
 
 type TokIter = Peekable<IntoIter<Token>>;
 
 pub(crate) fn parse(tokens: Tokens) -> Returnable<Expr, ParseError> {
     let mut token_iter = tokens.get_tokens().into_iter().peekable();
     parse_scope(&mut token_iter)
-}
-
-fn parse_scope(mut token_iter: &mut TokIter) -> Returnable<Expr, ParseError> {
-    while let Some(t) = token_iter.next() {
-        if let Token::Ident(s, loc) = t {
-            if &s == "let" {
-                parse_var_creation(&mut token_iter, loc)?;
-            }
-            else { // variable assignment or function call
-
-            }
-        }
-        else {
-            return Returnable::Err(t.loc().error(format!("Unexpected token {:?} '{}'", t, t)))
-        }
-    }
-    Returnable::Ok(Expr::Empty(Loc::none()))
 }
 
 macro_rules! expect_tok {
@@ -51,12 +34,45 @@ macro_rules! unexpected {
     };
 }
 
+fn parse_scope(mut token_iter: &mut TokIter) -> Returnable<Expr, ParseError> {
+    let start = token_iter.peek()?.loc().clone();
+    let mut stmts = vec![];
+    while let Some(t) = token_iter.peek() {
+        let tok = t.clone();
+        match tok {
+            Token::Ident(s, loc) => {
+                if s == "let" {
+                    token_iter.next()?;
+                    stmts.push(parse_var_creation(&mut token_iter, loc.clone())?);
+                }
+                else { // variable assignment or function call. let's ignore variable assignment for now
+                    stmts.push(Stmt::Expr(parse_expr(token_iter)?, loc));
+                    expect_tok!(token_iter.next()?, Token::EndStmt);
+                }
+            },
+            Token::EOF(_) => {
+                return Returnable::Ok(Expr::Stmts(stmts, None, Type::Empty, start));
+            }
+            tok => unexpected!(tok)?
+        }
+    }
+    Returnable::Err(start.error(format!("Unexpected end while parsing this scope {:?}", start)))
+}
+
 fn parse_expr(token_iter: &mut TokIter) -> Returnable<Expr, ParseError> {
     match token_iter.peek()? {
         Token::Ident(_, _) => {
             let start = token_iter.peek()?.loc().clone();
             let path = parse_path(token_iter)?;
-            return Returnable::Ok(Expr::Variable(Ident(path), start))
+            return if let Token::Bracket(Bracket::Round(Side::Open), _) = token_iter.peek()? {
+                token_iter.next()?;
+                Returnable::Ok(Expr::Call(FuncCall {
+                    ident: Ident(path),
+                    args: parse_args(token_iter)?
+                }, start))
+            } else {
+                Returnable::Ok(Expr::Variable(Ident(path), start))
+            }
         }
         Token::Bracket(_, _) => {
             if let Token::Bracket(bracket, loc) = token_iter.next()? {
@@ -65,7 +81,7 @@ fn parse_expr(token_iter: &mut TokIter) -> Returnable<Expr, ParseError> {
                         parse_scope(token_iter)
                     },
                     br => {
-                        Returnable::Err(loc.error(format!("Unexpected bracket, expected curly opening bracket '{{', got: {:?} '{}'", br, br)))
+                        Returnable::Err(loc.error(format!("Unexpected bracket variation, expected curly opening bracket '{{', got: {:?} '{}'", br, br)))
                     }
                 }
             }
@@ -91,7 +107,8 @@ fn parse_path(token_iter: &mut TokIter) -> Returnable<String, ParseError> {
         Token::Ident(mut ident, _) => {
             return match token_iter.peek()? {
                 Token::PathSep(_) => {
-                    token_iter.next();
+                    token_iter.next()?;
+                    ident.push_str("::");
                     ident.push_str(&parse_path(token_iter)?);
                     Returnable::Ok(ident)
                 }
@@ -120,4 +137,21 @@ fn parse_var_creation(mut token_iter: &mut TokIter, start: Loc) -> Returnable<St
         }
         tok => expected!(tok, "Ident"),
     }
+}
+
+fn parse_args(token_iter: &mut TokIter) -> Returnable<Vec<Expr>, ParseError> {
+    let mut args = vec![];
+    loop {
+        args.push(parse_arg(token_iter)?);
+        if let Token::Bracket(Bracket::Round(Side::Close), _) = token_iter.peek()? {
+            token_iter.next()?;
+            return Returnable::Ok(args)
+        }
+        expect_tok!(token_iter.next()?, Token::ArgSep);
+    }
+}
+
+fn parse_arg(mut token_iter: &mut TokIter) -> Returnable<Expr, ParseError> {
+    let expr = parse_expr(token_iter)?;
+    Returnable::Ok(expr)
 }
