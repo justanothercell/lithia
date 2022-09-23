@@ -1,7 +1,7 @@
 let a: i32 = 42i32;
 let b: i32 = 69i32;
 
-let res = i32::add(a, b);
+let res: i32 = i32::add(a, b);
 println(string::join("The result is: ", i32::to_string(res)));
 
 if i32::lt(res, 100i32) {

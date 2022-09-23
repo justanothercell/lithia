@@ -3,15 +3,19 @@ A compiler and bytecode-vm written in Rust for lithia (still to be created).
 
 Lithia will be inspired by Rust's amazing syntactical features (minus the lifetime and borrowing).
 
-last-update counter of shame: `21/09/2022`<br>
+last-update counter of shame: `23/09/2022`<br>
 (please excuse my inability to update readmes)
 
 ### What works right now
 - Running bytecode on the vm
 - Generating bytecode semi-manually (like assembler but with tools and in code, see [bytecode examples](src/bytecode_examples))
+- converting (some) code to tokens
+- converting (very few) tokens to ast
+- Converting (some) ast to bytecode
 
 ### Steps of compilation
-- [ ] Converting the code into token/ast tree
+- [x] Converting the code into tokens
+- [x] Converting tokens into ast tree (wip)
 - [ ] (Optional:) Simplify/Convert high level constructs to more primitive representation
 - [ ] Type and variable checking the ast for validity
 - [x] Converting ast to bytecode representation<br>
@@ -30,8 +34,8 @@ to always have a runnable and testable version.
 - [x] VM 
 - [x] byte code builder
 - [x] compiling ast to byte code
+- [x] parsing code to ast (wip)
 - [ ] type checking and analyzing ast for validity
-- [ ] parsing code to ast
 
 (the last two steps might be swappable)
 
@@ -55,4 +59,4 @@ general work, such as for example memmap, rand, chrono or cli crates are permitt
     - [x] println
     - [x] input
     - [ ] fileIO
-    - [ ] merging all of the above to use common traits etc
+    - [ ] merging all of the above to use common "traits" (in lithia) etc

@@ -3,6 +3,7 @@ use crate::{Compiler, Expr, FuncCall, Ident, Stmt};
 use crate::compiler::compiler::Loc;
 use crate::variable::{Type, Value};
 
+#[allow(unused)]
 pub(crate) fn example() -> Vec<u8> {
     let i32_lt = Ident("i32::lt".to_string());
     let i32_add = Ident("i32::add".to_string());

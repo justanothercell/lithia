@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use crate::Compiler;
+use crate::compiler::compiler::ParseError;
 use crate::compiler::parser::parse;
 use crate::compiler::tokenizer::tokenize;
 use crate::variable::Type;
@@ -18,10 +19,7 @@ pub(crate) fn example(file: &str) -> Vec<u8> {
 
     println!("Tokens:\n{}", tokens);
 
-    let ast = match parse(tokens) {
-        Ok(ast) => ast,
-        Err(e) => panic!("Error parsing:\n{}", e)
-    };
+    let ast = parse(tokens).to_result(ParseError::without_loc("Unexpected EOF".to_string())).expect("Error parsing");
 
     println!("ast: \n{:#?}", ast);
 

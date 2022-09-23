@@ -1,9 +1,13 @@
+use std::error::Error;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::Peekable;
-use std::str::Chars;
+use std::num::{ParseFloatError, ParseIntError};
+use std::str::{Chars, FromStr};
 use std::str::pattern::Pattern;
 use crate::compiler::compiler::{Loc, ParseError};
+use crate::returnable::Returnable;
+use crate::variable::Value;
 
 pub(crate) struct Tokens(Vec<Token>);
 
@@ -23,7 +27,39 @@ pub(crate) enum Token {
     Assign(Loc),
     TypeSep(Loc),
     PathSep(Loc),
-    ArgSep(Loc)
+    ArgSep(Loc),
+    EOF(Loc)
+}
+
+pub(crate) fn value_from_numer_literal(tok: Token) -> Returnable<Value, ParseError> {
+    if let Token::NumberLiteral(val, typ, loc) = tok {
+        let r: Result<Value, Box<dyn Error>> = try {
+            match typ.as_str() {
+                "u8" => Value::U8(u8::from_str(&val)?),
+                "u16" => Value::U16(u16::from_str(&val)?),
+                "u32" => Value::U32(u32::from_str(&val)?),
+                "u64" => Value::U64(u64::from_str(&val)?),
+                "u128" => Value::U128(u128::from_str(&val)?),
+
+                "i8" => Value::I8(i8::from_str(&val)?),
+                "i16" => Value::I16(i16::from_str(&val)?),
+                "i32" => Value::I32(i32::from_str(&val)?),
+                "i64" => Value::I64(i64::from_str(&val)?),
+                "i128" => Value::I128(i128::from_str(&val)?),
+
+                "f32" => Value::F32(f32::from_str(&val)?),
+                "f64" => Value::F64(f64::from_str(&val)?),
+                other => Err(loc.error(format!("Provided type '{}' is not valid as a number type", other)))?
+            }
+        };
+        match r {
+            Ok(v) => Returnable::Ok(v),
+            Err(e) => Returnable::Err(loc.error(format!("Error while parsing number literal: {}", e)))
+        }
+    }
+    else {
+        Returnable::Err(tok.loc().error(format!("Unexpected token {:?} '{}', expected NumberLiteral", tok, tok)))
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -103,6 +139,7 @@ pub(crate) fn tokenize(code: &str) -> Result<Tokens, ParseError> {
             return Err(input_iter.here().error(format!("Unexpected char '{}'", c)));
         }
     }
+    tokens.push(Token::EOF(input_iter.here()));
 
     Ok(Tokens(tokens))
 }
@@ -229,7 +266,8 @@ impl Token {
             Token::Assign(loc) => loc,
             Token::TypeSep(loc) => loc,
             Token::PathSep(loc) => loc,
-            Token::ArgSep(loc) => loc
+            Token::ArgSep(loc) => loc,
+            Token::EOF(loc) => loc
         }
     }
 }
@@ -246,7 +284,8 @@ impl Display for Token {
             Token::Assign(_) => "=".to_string(),
             Token::TypeSep(_) => ":".to_string(),
             Token::PathSep(_) => "::".to_string(),
-            Token::ArgSep(_) => ",".to_string()
+            Token::ArgSep(_) => ",".to_string(),
+            Token::EOF(_) => "".to_string()
         })
     }
 }

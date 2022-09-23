@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use std::num::ParseIntError;
 use crate::{BinBuilder, JmpType, Stmt};
 use crate::compiler::ast::Expr;
 use crate::compiler::bin_builder::VarId;
@@ -120,6 +121,16 @@ impl Compiler {
 
 #[derive(Debug)]
 pub(crate) struct ParseError(String, Loc);
+
+impl ParseError {
+    pub(crate) fn with_loc(msg: String, loc: Loc) -> Self{
+        ParseError(msg, loc)
+    }
+
+    pub(crate) fn without_loc(msg: String) -> Self{
+        ParseError(msg, Loc::none())
+    }
+}
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
