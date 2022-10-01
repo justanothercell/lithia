@@ -31,7 +31,7 @@ fn main() {
     //let code = codegen_examples::bytecode::for_loop::example();
 
     {
-        let mut file = File::create("test.bin").expect("Could not create file");
+        let mut file = File::create("test.lbc").expect("Could not create file");
         file.write_all(&code).expect("Could not write to file");
         file.flush().expect("Could not flush file");
     }
@@ -40,7 +40,7 @@ fn main() {
     let mut vm = Executor {
         stack_frames: vec![],
         stack: vec![],
-        program: unsafe { Mmap::map(&File::open("test.bin").expect("Could not open file!")).expect("Could not map file!") },
+        program: unsafe { Mmap::map(&File::open("test.lbc").expect("Could not open file!")).expect("Could not map file!") },
         externs: vm::bindings::standard_bindings(),
         current_marker: 0
     };

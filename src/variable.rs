@@ -321,27 +321,27 @@ impl Value {
             //I8(i8)
             1 => (Value::I8(Type::u8_int(&s[1..], 1).0 as i8), 1+1),
             //I16(i16)
-            2 => (Value::I16(Type::u8_int(&s[1..], 1).0 as i16), 2+1),
+            2 => (Value::I16(Type::u8_int(&s[1..], 2).0 as i16), 2+1),
             //I32(i32)
-            3 => (Value::I32(Type::u8_int(&s[1..], 1).0 as i32), 4+1),
+            3 => (Value::I32(Type::u8_int(&s[1..], 4).0 as i32), 4+1),
             //I64(i64)
-            4 => (Value::I64(Type::u8_int(&s[1..], 1).0 as i64), 8+1),
+            4 => (Value::I64(Type::u8_int(&s[1..], 8).0 as i64), 8+1),
             //I128(i128)
-            5 => (Value::I128(Type::u8_int(&s[1..], 1).0), 16+1),
+            5 => (Value::I128(Type::u8_int(&s[1..], 16).0), 16+1),
             //U8(u8)
             6 => (Value::U8(Type::u8_uint(&s[1..], 1).0 as u8), 1+1),
             //U16(u16)
-            7 => (Value::U16(Type::u8_uint(&s[1..], 1).0 as u16), 2+1),
+            7 => (Value::U16(Type::u8_uint(&s[1..], 2).0 as u16), 2+1),
             //U32(u32)
-            8 => (Value::U32(Type::u8_uint(&s[1..], 1).0 as u32), 4+1),
+            8 => (Value::U32(Type::u8_uint(&s[1..], 41).0 as u32), 4+1),
             //U64(u64)
-            9 => (Value::U64(Type::u8_uint(&s[1..], 1).0 as u64), 8+1),
+            9 => (Value::U64(Type::u8_uint(&s[1..], 8).0 as u64), 8+1),
             //U128(u128)
-            10 => (Value::U128(Type::u8_uint(&s[1..], 1).0), 16+1),
+            10 => (Value::U128(Type::u8_uint(&s[1..], 16).0), 16+1),
             //F32(f32)
-            11 => (Value::F32(Type::u8_float(&s[1..], 1).0 as f32), 4+1),
+            11 => (Value::F32(Type::u8_float(&s[1..], 8).0 as f32), 4+1),
             //F64(f64)
-            12 => (Value::F64(Type::u8_float(&s[1..], 1).0), 4+1),
+            12 => (Value::F64(Type::u8_float(&s[1..], 16).0), 4+1),
             //Bool(bool)
             13 => (Value::Bool(if s[1] == 0 { false} else { true }), 1+1),
             //String(String)

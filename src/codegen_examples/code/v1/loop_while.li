@@ -1,7 +1,8 @@
 let i: i32 = 0i32;
-while i32::lt(i, 10i32) {
+
+while i32::lt(i, 1000i32) {
     println(string::join("counting: ", i32::to_string(i)));
     i = i32::add(i, 1i32);
 }
 
-println("finished!");
+println("Finished!");
