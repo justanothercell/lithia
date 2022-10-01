@@ -17,6 +17,7 @@ last-update counter of shame: `01/10/2022`<br>
   - [x] if/else
   - [x] var declaration
   - [x] extern function calls
+  - [x] assigning to variables
 - [x] nice compiler error messages
 
 ### Big stuff that's missing and I don't want to put as a sub point everywhere:
