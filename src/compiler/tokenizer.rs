@@ -6,7 +6,6 @@ use std::num::{ParseFloatError, ParseIntError};
 use std::str::{Chars, FromStr};
 use std::str::pattern::Pattern;
 use crate::compiler::compiler::{Loc, ParseError};
-use crate::returnable::Returnable;
 use crate::variable::Value;
 
 pub(crate) struct Tokens(Vec<Token>);
@@ -31,7 +30,7 @@ pub(crate) enum Token {
     EOF(Loc)
 }
 
-pub(crate) fn value_from_numer_literal(tok: Token) -> Returnable<Value, ParseError> {
+pub(crate) fn value_from_numer_literal(tok: Token) -> Result<Value, ParseError> {
     if let Token::NumberLiteral(val, typ, loc) = tok {
         let r: Result<Value, Box<dyn Error>> = try {
             match typ.as_str() {
@@ -53,12 +52,12 @@ pub(crate) fn value_from_numer_literal(tok: Token) -> Returnable<Value, ParseErr
             }
         };
         match r {
-            Ok(v) => Returnable::Ok(v),
-            Err(e) => Returnable::Err(loc.error(format!("Error while parsing number literal: {}", e)))
+            Ok(v) => Ok(v),
+            Err(e) => Err(loc.error(format!("Error while parsing number literal: {}", e)))
         }
     }
     else {
-        Returnable::Err(tok.loc().error(format!("Unexpected token {:?} '{}', expected NumberLiteral", tok, tok)))
+        Err(tok.loc().error(format!("Unexpected token {:?} '{}', expected NumberLiteral", tok, tok)))
     }
 }
 
@@ -296,10 +295,11 @@ impl ParserIter<'_> {
 
     fn here(&self) -> Loc {
         Loc {
-            original: self.original.clone(),
             index: self.index,
             line: self.line,
-            index_in_line: self.index_in_line
+            index_in_line: self.index_in_line,
+            is_dummy: false,
+            source_code: self.original.clone()
         }
     }
 }

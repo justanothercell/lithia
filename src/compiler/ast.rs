@@ -14,7 +14,8 @@ pub(crate) enum Expr {
     Stmts(Vec<Stmt>, Option<Box<Expr>>, Type, Loc),
     Variable(Ident, Loc),
     Value(Value, Loc),
-    LoopWhile(Box<Expr>, Box<Expr>, Loc),
+    While(Box<Expr>, Box<Expr>, Loc),
+    If(Box<Expr>, Box<Expr>, Box<Expr>, Loc),
     Empty(Loc)
 }
 
@@ -25,8 +26,9 @@ impl Expr {
             Expr::Stmts(_, _, _, loc) => loc,
             Expr::Variable(_, loc) => loc,
             Expr::Value(_, loc) => loc,
-            Expr::LoopWhile(_, _, loc) => loc,
-            Expr::Empty(loc) => loc
+            Expr::While(_, _, loc) => loc,
+            Expr::If(_, _, _, loc) => loc,
+            Expr::Empty(loc) => loc,
         }
     }
 }
@@ -78,7 +80,8 @@ impl Display for Expr {
             },
             Expr::Variable(var, _) => format!("{}", var.0),
             Expr::Value(val, _) => format!("{:?}", val),
-            Expr::LoopWhile(cond, body, _) => format!("while {} {{\n{}\n}}", cond, textwrap::indent(&format!("{}", body), "    ")),
+            Expr::While(cond, body, _) => format!("while {} {{\n{}\n}}", cond, textwrap::indent(&format!("{}", body), "    ")),
+            Expr::If(cond, body_if, body_else, _) => format!("if {} {{\n{}\n}}\nelse {{\n{}\n}}", cond, textwrap::indent(&format!("{}", body_if), "    "), textwrap::indent(&format!("{}", body_else), "    ")),
             Expr::Empty(_) => format!("")
         })
     }

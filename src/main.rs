@@ -22,11 +22,10 @@ mod vm;
 mod compiler;
 mod variable;
 mod codegen_examples;
-mod returnable;
 
 fn main() {
 
-    let code = codegen_examples::code::example("adder_if.li");
+    let code = codegen_examples::code::example("loop_while.li");
     println!();
     //let code = codegen_examples::ast::while_loop::example();
     //let code = codegen_examples::bytecode::for_loop::example();

@@ -3,20 +3,42 @@ A compiler and bytecode-vm written in Rust for lithia (still to be created).
 
 Lithia will be inspired by Rust's amazing syntactical features (minus the lifetime and borrowing).
 
-last-update counter of shame: `23/09/2022`<br>
+last-update counter of shame: `01/10/2022`<br>
 (please excuse my inability to update readmes consistently)
 
 ### What works right now
 - [x] Running bytecode on the vm
 - [x] Generating bytecode semi-manually (like assembler but with tools and in code, see [bytecode examples](src/bytecode_examples))
 - [x] converting (some) code to tokens
-- [x] converting (very few) tokens to ast
-- [x] Converting (some) ast to bytecode
-- [x] Running the adder and print parts of [adder_id.li](src/codegen_examples/code/v1/adder_if.li)
+- [x] converting (some) tokens to ast
+- [x] Converting (almost all) ast to bytecode
+- [x] Running the [simple examples](src/codegen_examples/code/v1)
+  - [x] while loop
+  - [x] if/else
+  - [x] var declaration
+  - [x] extern function calls
+- [x] nice compiler error messages
+
+### Big stuff that's missing and I don't want to put as a sub point everywhere:
+(will reopen closed stuff when I actually get to implement these)
+- [ ] own functions
+- [ ] generics
+- [ ] inline scopes
+- [ ] return values from if/for
+- [ ] continue/break/...
+- [ ] literal operators (+/-*)
+- [ ] typedef
+- [ ] struct usage
+- [ ] item accessor
 
 ### Steps of compilation
 - [x] Converting the code into tokens
-- [x] Converting tokens into ast tree (wip)
+- [ ] Converting tokens into ast tree (wip)
+  - [x] if
+  - [ ] for
+  - [x] while
+  - [x] let x = ...
+  - [ ] i = i + 1
 - [ ] (Optional:) Simplify/Convert high level constructs to more primitive representation
 - [ ] Type and variable checking the ast for validity
 - [x] Converting ast to bytecode representation<br>
@@ -26,7 +48,7 @@ last-update counter of shame: `23/09/2022`<br>
 ### Steps to run bytecode (mostly complete)
 - [x] Load bytes into memmap
 - [x] decoding bytes and running sequentially
-- [ ] throwing error and aborting peacefully (in case of some fault), returning stack trace position instead of crashing <br>
+- [x] throwing error and aborting peacefully (in case of some fault), returning stack trace position instead of crashing <br>
   (using markers and a link to the actual source to generate stacktrace)
 
 ### Implementing progress
@@ -53,6 +75,7 @@ general work, such as for example memmap, rand, chrono or cli crates are permitt
     - [ ] builtin list/array type
     - [ ] generics
     - [ ] traits/interfaces (only ast side luckily, vm doesn't know of this at all)
+    - [ ] "extern" type wrapper to use in extern functions
 - [ ] mapping stdlib (a bit at a time, whenever needed)
   - [ ] proper stdlib layout 
   - [x] basic operators for primitive types (+-*/ .to_string())
