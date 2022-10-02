@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use crate::compiler::compiler::{Loc, ParseError};
-use crate::compiler::tokenizer::{Bracket, Side, Token, tokenize, Tokens, value_from_numer_literal};
+use crate::compiler::tokenizer::{Bracket, Side, Token, Tokens, value_from_numer_literal};
 use crate::{Expr, FuncCall, Ident, Stmt};
 use crate::variable::{Type, Value};
 
@@ -210,6 +210,7 @@ fn parse_while(mut token_iter: &mut TokIter, start: Loc) -> Result<Expr, ParseEr
     let cond = parse_expr(&mut token_iter)?;
     expect_tok_specific!(token_iter.next()?, Token::Bracket(Bracket::Curly(Side::Open), _));
     let body = parse_scope(&mut token_iter)?;
+    expect_tok_specific!(token_iter.next()?, Token::Bracket(Bracket::Curly(Side::Close), _));
     Ok(Expr::While(Box::from(cond), Box::from(body), start.clone()))
 }
 

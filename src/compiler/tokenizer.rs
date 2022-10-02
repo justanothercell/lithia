@@ -2,7 +2,6 @@ use std::error::Error;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::Peekable;
-use std::num::{ParseFloatError, ParseIntError};
 use std::str::{Chars, FromStr};
 use std::str::pattern::Pattern;
 use crate::compiler::compiler::{Loc, ParseError};
@@ -213,14 +212,17 @@ fn tokenize_number_literal(input_iter: &mut ParserIter) -> Result<Token, ParseEr
     let mut val = String::new();
     let mut ty = String::new();
     let mut had_dot = false;
-    while let Some(c) = input_iter.peek() {
-        if c.is_ascii_digit() {
-            val.push(*c);
+    while let Some(&c) = input_iter.peek() {
+        if c == '_' {
             input_iter.next();
         }
-        else if c == &'.' {
+        else if c.is_ascii_digit() {
+            val.push(c);
+            input_iter.next();
+        }
+        else if c == '.' {
             if !had_dot {
-                val.push(*c);
+                val.push(c);
                 had_dot = true;
                 input_iter.next();
             }

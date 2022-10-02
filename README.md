@@ -20,6 +20,20 @@ last-update counter of shame: `01/10/2022`<br>
   - [x] assigning to variables
 - [x] nice compiler error messages
 
+### Performance
+Time is an estimated average over a few runs. may be off by half a second.
+
+##### HashDict solution
+
+| HashDict implementation   | time        |
+|---------------------------|-------------|
+| HashMap                   | 24.5s-~26s  |
+| BTreeMap                  | 23.4s-~26s  |
+| HashMap+BuildNoHashHasher | 22.1s-24.4s |
+| ahash::AHashMap           | 21.3s-23.1s |
+
+
+
 ### Big stuff that's missing and I don't want to put as a sub point everywhere:
 (will reopen closed stuff when I actually get to implement these)
 - [ ] own functions
@@ -31,6 +45,7 @@ last-update counter of shame: `01/10/2022`<br>
 - [ ] typedef
 - [ ] struct usage
 - [ ] item accessor
+- [ ] export or file linking
 
 ### Steps of compilation
 - [x] Converting the code into tokens
@@ -38,18 +53,20 @@ last-update counter of shame: `01/10/2022`<br>
   - [x] if
   - [ ] for
   - [x] while
-  - [x] let x = ...
-  - [ ] i = i + 1
-- [ ] (Optional:) Simplify/Convert high level constructs to more primitive representation
+  - [x] let x = ...;
+  - [x] i = i + 1;
+- [ ] Simplify/Convert high level constructs to more primitive representation
+  - [ ] operator to function
+  - [ ] inferred types
 - [ ] Type and variable checking the ast for validity
-- [x] Converting ast to bytecode representation<br>
+- [x] Converting ast to bytecode representation
 - [x] (also able to write bytecode manually, see [bytecode examples](src/bytecode_examples))
 - [x] Writing bytecode to file
 
 ### Steps to run bytecode (mostly complete)
 - [x] Load bytes into memmap
 - [x] decoding bytes and running sequentially
-- [x] throwing error and aborting peacefully (in case of some fault), returning stack trace position instead of crashing <br>
+- [ ] throwing error and aborting peacefully (in case of some fault), returning stack trace position instead of crashing <br>
   (using markers and a link to the actual source to generate stacktrace)
 
 ### Implementing progress

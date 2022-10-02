@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use crate::variable::Value;
+use crate::vm::virtual_machine::HashDict;
 
 pub mod operators;
 pub mod io;

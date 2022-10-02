@@ -17,9 +17,10 @@ start scope_global
 end scope_global
  */
 
+use std::collections::btree_map::BTreeMap;
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
-use memmap::Mmap;
+use memmap2::Mmap;
 use crate::variable::{Type, Value};
 
 #[repr(u8)]
@@ -47,9 +48,14 @@ impl Word {
     }
 }
 
+//pub(crate) type HashDict<K, V> = HashMap<K, V>;
+//pub(crate) type HashDict<K, V> = BTreeMap<K, V>;
+//pub(crate) type HashDict<K, V> = HashMap<K, V, nohash_hasher::BuildNoHashHasher<K>>;
+pub(crate) type HashDict<K, V> = ahash::AHashMap<K, V>;
+
 #[derive(Debug)]
 pub(crate) struct Frame {
-    pub(crate) locals: HashMap<usize, Value>,
+    pub(crate) locals: HashDict<usize, Value>,
     pub(crate) prog_ptr: usize
 }
 
@@ -67,7 +73,7 @@ pub(crate) struct Executor{
     pub(crate) stack_frames: Vec<Frame>,
     pub(crate) stack: Vec<Value>,
     pub(crate) program: Mmap,
-    pub(crate) externs: HashMap<String, Value>,
+    pub(crate) externs: HashMap<String, Value>, // has to be loaded only once, so Hashmap suffices
     pub(crate) current_marker: usize
 }
 

@@ -11,7 +11,7 @@ extern crate core;
 use std::fs::File;
 use std::io::Write;
 use std::ops::Deref;
-use memmap::Mmap;
+use memmap2::Mmap;
 use compiler::ast::*;
 use compiler::bin_builder::{BinBuilder, JmpType};
 use vm::virtual_machine::{Executor, Word};
@@ -25,7 +25,7 @@ mod codegen_examples;
 
 fn main() {
 
-    let code = codegen_examples::code::example("loop_while.li");
+    let code = codegen_examples::code::example("performance_test.li");
     println!();
     //let code = codegen_examples::ast::while_loop::example();
     //let code = codegen_examples::bytecode::for_loop::example();
