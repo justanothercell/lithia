@@ -5,6 +5,7 @@
 #![feature(try_blocks)]
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_yeet)]
+#![feature(trait_upcasting)]
 
 extern crate core;
 
@@ -25,7 +26,7 @@ mod codegen_examples;
 
 fn main() {
 
-    let code = codegen_examples::code::example("performance_test.li");
+    let code = codegen_examples::code::example("write_file_option.li");
     println!();
     //let code = codegen_examples::ast::while_loop::example();
     //let code = codegen_examples::bytecode::for_loop::example();

@@ -112,7 +112,7 @@ impl Executor {
 
         macro_rules! perf {
             ($statement: stmt) => {
-                ()//$statement
+                $statement
             };
         }
 
@@ -193,10 +193,10 @@ impl Executor {
                     else {
                         log_step!("popped stack frame, finishing execution and returning {} values", self.stack.len());
                         perf! {{
-                            println!("| word       | calls   | total          | time/call    |");
-                            println!("|------------|---------|----------------|--------------|");
+                            println!("| word       | calls   | total          | time/call |");
+                            println!("|------------|---------|----------------|-----------|");
                             for (word, (calls, total_time)) in timings {
-                                println!("| {:9} | {:7} | {:12}ns | {:6}ns |", format!("{:?}", Word::from_u8(word)), calls, total_time, total_time / calls as u128)
+                                println!("| {:10} | {:7} | {:12}ns | {:7}ns |", format!("{:?}", Word::from_u8(word)), calls, total_time, total_time / calls as u128)
                             }
                         }}
                         return (self.stack.to_owned(), SystemTime::now().duration_since(start).unwrap());

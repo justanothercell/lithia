@@ -1,4 +1,5 @@
-use std::fmt::Debug;
+use std::any::Any;
+use std::fmt::{Debug, Formatter};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -6,6 +7,46 @@ pub(crate) struct Ident(pub(crate) String);
 
 #[derive(Debug, Clone)]
 pub(crate) struct Arg(pub(crate) Ident, pub(crate) Type);
+
+#[derive(Clone)]
+pub(crate) struct VarObject {
+    obj: Box<dyn VMObject>
+}
+
+
+impl VarObject {
+    pub(crate) fn new<T: VMObject>(obj: T) -> Self{
+        VarObject { obj: Box::from(obj) }
+    }
+
+    pub(crate) fn to<T: VMObject>(self) -> T {
+        Self::vmo_to(self.obj)
+    }
+
+    pub(crate) fn vmo_to<T: VMObject>(vmo: Box<dyn VMObject>) -> T {
+        let res = (vmo as Box<dyn Any>).downcast();
+        let box b = res.unwrap();
+        b
+    }
+}
+
+
+pub(crate) trait VMObject: Any {
+    fn box_clone(&self) -> Box<dyn VMObject>;
+    fn debug(&self) -> String;
+}
+
+impl Clone for Box<dyn VMObject>{
+    fn clone(&self) -> Self {
+        self.box_clone()
+    }
+}
+
+impl Debug for VarObject {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "VarObject({})", self.obj.debug())
+    }
+}
 
 #[repr(u8)]
 #[derive(Debug, Clone)]
@@ -34,7 +75,7 @@ pub(crate) enum Type {
     Struct(HashMap<Ident, Type>),
     Enum(HashMap<Ident, Type>),
     Fn(Vec<Type>, Vec<Type>),
-    Frame
+    Object
 }
 
 impl Type {
@@ -59,7 +100,7 @@ impl Type {
             Type::Struct(_) => 16u8,
             Type::Enum(_) => 17u8,
             Type::Fn(_, _) => 18u8,
-            Type::Frame => 19u8
+            Type::Object => 19u8,
         }
     }
 
@@ -170,7 +211,7 @@ impl Type {
                 }
                 (Type::Fn(t, r), o)
             },
-            19 => (Type::Frame, 0),
+            19 => (Type::Object, 1),
             invalid => unreachable!("This match case is an invalid type: {}", invalid)
         }
     }
@@ -253,7 +294,8 @@ pub(crate) enum Value {
     Tuple(Vec<Value>),
     Struct(HashMap<Ident, Value>),
     Enum(HashMap<Ident, Value>),
-    Fn(fn(Vec<Value>) -> Vec<Value>, Vec<Type>, Vec<Type>)
+    Fn(fn(Vec<Value>) -> Vec<Value>, Vec<Type>, Vec<Type>),
+    Object(VarObject)
 }
 
 impl Value {
@@ -282,7 +324,8 @@ impl Value {
             Value::Tuple(vals) => Type::Tuple(vals.iter().map(|v| v.get_type()).collect()),
             Value::Struct(fields) => Type::Struct(fields.iter().map(|(k, v)| (k.clone(), v.get_type())).collect()),
             Value::Enum(variants) => Type::Enum(variants.iter().map(|(k, v)| (k.clone(), v.get_type())).collect()),
-            Value::Fn(_fn, args, ret) => Type::Fn(args.clone(), ret.clone())
+            Value::Fn(_fn, args, ret) => Type::Fn(args.clone(), ret.clone()),
+            Value::Object(_) => Type::Object
         }
     }
 
@@ -305,11 +348,12 @@ impl Value {
             Value::F32(f32) => Type::float_u8(f32 as f64, 4),
             Value::F64(f64) => Type::float_u8(f64, 8),
             Value::Bool(bool) => if bool { vec![1] } else { vec![0] },
-            Value::String(string) => Type::str_u8(&string),
+            Value::String(string) => Type::str_u8(&*string),
             Value::Tuple(_) => unimplemented!(),
             Value::Struct(_) => unimplemented!(),
             Value::Enum(_) => unimplemented!(),
             Value::Fn(_, _, _) => panic!("Unable to express function as a literal value and therefore cannot parse from Value::Fn to &[u8]"),
+            Value::Object(_) => panic!("Unable to express type as a literal value and therefore cannot parse from Value::Fn to &[u8]"),
         });
         s
     }
@@ -421,6 +465,11 @@ impl Debug for Value {
                 ::core::fmt::Formatter::debug_tuple_field2_finish(
                     f, "Fn", &__self_1, &__self_2,
                 )
+            }
+            Value::Object(__self_0) => {
+                ::core::fmt::Formatter::debug_struct(
+                    f, &*format!("{:?}", &__self_0),
+                ).finish()
             }
         }
     }

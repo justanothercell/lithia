@@ -28,6 +28,9 @@ pub(crate) fn example(file: &str) -> Vec<u8> {
         ("i32::to_string".to_string(), (vec![Type::I32], vec![Type::String])),
         ("string::join".to_string(), (vec![Type::String, Type::String], vec![Type::String])),
         ("println".to_string(), (vec![Type::String], vec![])),
+        ("to_dbg_string".to_string(), (vec![Type::Empty], vec![Type::String])),
+        ("File::create".to_string(), (vec![Type::String], vec![])),
+        ("File::write".to_string(), (vec![Type::String, Type::Object], vec![])),
     ]));
 
     compiler.compile(ast).expect("Error compiling!")

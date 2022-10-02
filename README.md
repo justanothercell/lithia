@@ -35,15 +35,15 @@ All timings are relative and should not be compared across tables!
 
 ##### Word perf (latest)
 
-| word       | calls   | total         | time/call   |
-|------------|---------|---------------|-------------|
-| Extern     | 5       | 103700ns      | 20740ns |
-| SetVar     | 1000001 | 3042578000ns  | 3042ns  |
-| PushVar    | 2000001 | 5930219400ns  | 2965ns  |
-| Call       | 2000002 | 12840922000ns | 6420ns  |
-| Push       | 2000003 | 4499945500ns  | 2249ns  |
-| JumpUnless | 1000001 | 2584441100ns  | 2584ns  |
-| Jump       | 1000000 | 2282380100ns  | 2282ns  |
+| word       | calls   | total          | time/call |
+|------------|---------|----------------|-----------|
+| PushVar    | 2000001 |   1007140800ns |     503ns |
+| Call       | 2000002 |   1859070200ns |     929ns |
+| JumpUnless | 1000001 |    118427700ns |     118ns |
+| SetVar     | 1000001 |    362540900ns |     362ns |
+| Jump       | 1000000 |    332101600ns |     332ns |
+| Extern     |       5 |        45300ns |    9060ns |
+| Push       | 2000003 |    694174800ns |     347ns |
 
 ##### Call perf
 
@@ -58,7 +58,10 @@ All timings are relative and should not be compared across tables!
 ##### JumpUnless + JumpIf
 Removed redundant read if not jumping: ~300ns to ~100ns on release
 
-###### call + jumps resulted in an improvement from 21s-23s to now 17.9s-19s
+###### => call + jumps resulted in an improvement from 21s-23s to now 17.9s-19s
+
+##### opt-level
+0 to 1 => from 20s down to sub 5
 
 ### Big stuff that's missing and I don't want to put as a sub point everywhere:
 (will reopen closed stuff when I actually get to implement these)
@@ -72,6 +75,7 @@ Removed redundant read if not jumping: ~300ns to ~100ns on release
 - [ ] struct usage
 - [ ] item accessor
 - [ ] export or file linking
+- [x] extern Object
 
 ### Steps of compilation
 - [x] Converting the code into tokens
@@ -113,13 +117,13 @@ general work, such as for example memmap, rand, chrono or cli crates are permitt
 
 ### General todos:
 - [ ] refining language and vm:
-  - [ ] support for foreign types (for example "File" type) which do not have to eb hardcoded but can be included like extern functions
+  - [x] support for foreign types (for example "File" type) which do not have to be hardcoded but can be included like extern functions
   - [ ] proper struct/data/custom data type support 
     - [ ] "get field" vm bytecode instruction (Word) for structs etc
     - [ ] builtin list/array type
     - [ ] generics
     - [ ] traits/interfaces (only ast side luckily, vm doesn't know of this at all)
-    - [ ] "extern" type wrapper to use in extern functions
+    - [x] "extern" type wrapper to use in extern functions
 - [ ] mapping stdlib (a bit at a time, whenever needed)
   - [ ] proper stdlib layout 
   - [x] basic operators for primitive types (+-*/ .to_string())
