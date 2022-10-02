@@ -46,6 +46,26 @@ impl Word {
     pub(crate) fn u8(self) -> u8{
         self as u8
     }
+
+    pub(crate) fn from_u8(id: u8) -> Self {
+        match id {
+            0 => Word::Noop,
+            1 => Word::SetVar,
+            2 => Word::Delete,
+            3 => Word::Push,
+            4 => Word::PushVar,
+            5 => Word::Pop,
+            6 => Word::Call,
+            7 => Word::Frame,
+            8 => Word::Return,
+            9 => Word::Extern,
+            10 => Word::Jump,
+            11 => Word::JumpIf,
+            12 => Word::JumpUnless,
+            13 => Word::Marker,
+            _ => panic!("invalid word: {}", id)
+        }
+    }
 }
 
 //pub(crate) type HashDict<K, V> = HashMap<K, V>;
@@ -90,15 +110,26 @@ impl Executor {
             };
         }
 
+        macro_rules! perf {
+            ($statement: stmt) => {
+                ()//$statement
+            };
+        }
+
+        // used if perf is on
+        let mut timings = HashMap::<u8, (u32, u128)>::new();
+        let mut perf_start: SystemTime;
+
         let u8_id: fn(&[u8]) -> (_, _) = |p|Type::u8_uint(p, 4);
 
         loop {
-            match {
-                let p = self.frame().prog_ptr;
-                let next = self.program[p];
-                self.frame().prog_ptr += 1;
-                next
-            } {
+            perf! {
+                perf_start = SystemTime::now()
+            }
+            let p = self.frame().prog_ptr;
+            let next = self.program[p];
+            self.frame().prog_ptr += 1;
+            match next {
                 //Noop
                 0 => {
                     log_step!("no-op instruction")
@@ -139,11 +170,8 @@ impl Executor {
                     let id = self.next_in(u8_id) as usize;
                     let func = self.frame().locals.get(&id).expect(&format!("Unable to find local (function) variable with id {}", id)).clone();
                     if let Value::Fn(fun, t_args, _t_ret) = func {
-                        let mut args = vec![];
-                        for _ in 0..t_args.len() {
-                            args.push(self.stack.pop().expect("Stack was empty"));
-                        }
-                        self.stack.append(&mut fun.call((args,)).to_vec());
+                        let args = self.stack.split_off(self.stack.len() - t_args.len());
+                        self.stack.append(&mut fun.call((args,)));
                     }
                     else {
                         panic!("Variable {} is not a function: {:?}", id, func)
@@ -164,6 +192,13 @@ impl Executor {
                     }
                     else {
                         log_step!("popped stack frame, finishing execution and returning {} values", self.stack.len());
+                        perf! {{
+                            println!("| word       | calls   | total          | time/call    |");
+                            println!("|------------|---------|----------------|--------------|");
+                            for (word, (calls, total_time)) in timings {
+                                println!("| {:9} | {:7} | {:12}ns | {:6}ns |", format!("{:?}", Word::from_u8(word)), calls, total_time, total_time / calls as u128)
+                            }
+                        }}
                         return (self.stack.to_owned(), SystemTime::now().duration_since(start).unwrap());
                     }
                 }
@@ -185,14 +220,15 @@ impl Executor {
                 //JumpIf
                 11 => {
                     let v = self.stack.pop().expect("Stack was empty");
-                    let dest = self.next_in(|p|Type::u8_uint(p, 4)) as usize;
                     if let Value::Bool(b) = v {
                         if b {
+                            let dest = self.next_in(|p|Type::u8_uint(p, 4)) as usize;
                             self.frame().prog_ptr = dest;
                             log_step!("jumped conditionally (if) to {}", dest)
                         }
                         else {
-                            log_step!("did not jump conditionally (if) to {}", dest)
+                            self.frame().prog_ptr += 4;
+                            log_step!("did not jump conditionally (if)")
                         }
                     }
                     else {
@@ -202,14 +238,16 @@ impl Executor {
                 //JumpUnless
                 12 => {
                     let v = self.stack.pop().expect("Stack was empty");
-                    let dest = self.next_in(|p|Type::u8_uint(p, 4)) as usize;
                     if let Value::Bool(b) = v {
                         if !b {
+
+                            let dest = self.next_in(|p|Type::u8_uint(p, 4)) as usize;
                             self.frame().prog_ptr = dest;
                             log_step!("jumped conditionally (unless) to {}", dest)
                         }
                         else{
-                            log_step!("did not jump conditionally (unless) to {}", dest)
+                            self.frame().prog_ptr += 4;
+                            log_step!("did not jump conditionally (unless)")
                         }
                     }
                     else {
@@ -223,6 +261,14 @@ impl Executor {
                 }
                 invalid => unimplemented!("This word is not implemented: {}", invalid)
             }
+            perf! {{
+                if !timings.contains_key(&next){
+                    timings.insert(next, (0, 0));
+                }
+                let f = timings.get_mut(&next).unwrap();
+                f.0 += 1;
+                f.1 += SystemTime::now().duration_since(perf_start).unwrap().as_nanos();
+            }}
         }
     }
 

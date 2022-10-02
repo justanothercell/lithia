@@ -21,7 +21,8 @@ last-update counter of shame: `02/10/2022`<br>
 - [x] nice compiler error messages
 
 ### Performance
-Time is an estimated average over a few runs. may be off by half a second.
+Time is an estimated average over a few runs. May be off by a small amount. 
+All timings are relative and should not be compared across tables!
 
 ##### HashDict solution
 
@@ -32,7 +33,32 @@ Time is an estimated average over a few runs. may be off by half a second.
 | HashMap+BuildNoHashHasher | 22.1s-24.4s |
 | ahash::AHashMap           | 21.3s-23.1s |
 
+##### Word perf (latest)
 
+| word       | calls   | total         | time/call   |
+|------------|---------|---------------|-------------|
+| Extern     | 5       | 103700ns      | 20740ns |
+| SetVar     | 1000001 | 3042578000ns  | 3042ns  |
+| PushVar    | 2000001 | 5930219400ns  | 2965ns  |
+| Call       | 2000002 | 12840922000ns | 6420ns  |
+| Push       | 2000003 | 4499945500ns  | 2249ns  |
+| JumpUnless | 1000001 | 2584441100ns  | 2584ns  |
+| Jump       | 1000000 | 2282380100ns  | 2282ns  |
+
+##### Call perf
+
+| implementation                    | time per call |
+|-----------------------------------|---------------|
+| for loop (before)                 | 6420ns        |
+| split_at+reverse                  | 6405ns        |
+| split_at (reversed all functions) | 5919ns        |
+| removed .to_vec after call        | 5100ns +      |
+
+
+##### JumpUnless + JumpIf
+Removed redundant read if not jumping: ~300ns to ~100ns on release
+
+###### call + jumps resulted in an improvement from 21s-23s to now 17.9s-19s
 
 ### Big stuff that's missing and I don't want to put as a sub point everywhere:
 (will reopen closed stuff when I actually get to implement these)

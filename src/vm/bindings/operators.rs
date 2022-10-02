@@ -6,7 +6,7 @@ macro_rules! operator {
     ($identifier: expr, $variant: tt, $op_fn: expr, $res: tt) => {
         ($identifier.to_string(), Value::Fn(|args| {
             if let [Value::$variant(u1), Value::$variant(u2)] = args[0..2] {
-                return vec![Value::$res($op_fn(u1, u2))];
+                return vec![Value::$res($op_fn(u2, u1))];
             }
             panic!("Invalid args {:?} for {}", args, $identifier)
         }, vec![Type::$variant, Type::$variant], vec![Type::$variant]))
@@ -17,7 +17,7 @@ macro_rules! operator_borrow {
     ($identifier: expr, $variant: tt, $op_fn: expr, $res: tt) => {
         ($identifier.to_string(), Value::Fn(|args| {
             if let [Value::$variant(u1), Value::$variant(u2)] = args[0..2] {
-                return vec![Value::$res($op_fn(&u1, &u2))];
+                return vec![Value::$res($op_fn(&u2, &u1))];
             }
             panic!("Invalid args {:?} for {}", args, $identifier)
         }, vec![Type::$variant, Type::$variant], vec![Type::$variant]))
