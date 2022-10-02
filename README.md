@@ -3,7 +3,7 @@ A compiler and bytecode-vm written in Rust for lithia (still to be created).
 
 Lithia will be inspired by Rust's amazing syntactical features (minus the lifetime and borrowing).
 
-last-update counter of shame: `01/10/2022`<br>
+last-update counter of shame: `02/10/2022`<br>
 (please excuse my inability to update readmes consistently)
 
 ### What works right now
