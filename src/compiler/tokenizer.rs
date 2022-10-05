@@ -21,16 +21,58 @@ pub(crate) enum Token {
     Ident(String, Loc),
     Bracket(Bracket, Loc),
     String(String, Loc),
-    NumberLiteral(String, String, Loc),
+    NumLiteral(String, String, Loc),
     Assign(Loc),
     TypeSep(Loc),
     PathSep(Loc),
     ArgSep(Loc),
+    Op(Op, Loc),
     EOF(Loc)
 }
 
+#[derive(Debug, Clone)]
+pub(crate) enum Op{
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Pow,
+    Ls,
+    Le,
+    Gt,
+    Ge,
+    And,
+    Or,
+    BitAnd,
+    BitOr,
+    Xor
+}
+
+impl Display for Op {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Op::Add => "+",
+            Op::Sub => "-",
+            Op::Mul => "*",
+            Op::Div => "/",
+            Op::Mod => "%",
+            Op::Pow => "**",
+            Op::Ls => "<",
+            Op::Le => "<=",
+            Op::Gt => ">",
+            Op::Ge => ">=",
+            Op::And => "&&",
+            Op::Or => "||",
+            Op::BitAnd => "&",
+            Op::BitOr => "|",
+            Op::Xor => "^",
+        })
+    }
+}
+
 pub(crate) fn value_from_numer_literal(tok: Token) -> Result<Value, ParseError> {
-    if let Token::NumberLiteral(val, typ, loc) = tok {
+    if let Token::NumLiteral(val, typ, loc) = tok {
         let r: Result<Value, Box<dyn Error>> = try {
             match typ.as_str() {
                 "u8" => Value::U8(u8::from_str(&val)?),
@@ -123,6 +165,55 @@ pub(crate) fn tokenize(code: &str) -> Result<Tokens, ParseError> {
                 _ => unreachable!()
             }, input_iter.here()));
             input_iter.next();
+        }
+        else if c.is_contained_in("+-*/%&|><") {
+            let loc = input_iter.here();
+            input_iter.next();
+            tokens.push(Token::Op(match c {
+                '+' => Op::Add,
+                '-' => Op::Sub,
+                '*' => {
+                    if let Some('*') = input_iter.peek() {
+                        Op::Pow
+                    } else {
+                        Op::Mul
+                    }
+                },
+                '/' => Op::Div,
+                '%' => Op::Mod,
+                '<' => {
+                    if let Some('=') = input_iter.peek() {
+                        Op::Le
+                    } else {
+                        Op::Ls
+                    }
+                },
+                '>' => {
+                    if let Some('=') = input_iter.peek() {
+                        Op::Le
+                    } else {
+                        Op::Ls
+                    }
+                },
+                '&' => {
+                    if let Some('&') = input_iter.peek() {
+                        Op::And
+                    }
+                    else {
+                        Op::BitAnd
+                    }
+                },
+                '|' => {
+                    if let Some('|') = input_iter.peek() {
+                        Op::Or
+                    }
+                    else {
+                        Op::BitOr
+                    }
+                },
+                '^' => Op::Xor,
+                _ => unreachable!()
+            }, loc));
         }
         else if c == '"' {
             tokens.push(tokenize_string(&mut input_iter))
@@ -253,7 +344,7 @@ fn tokenize_number_literal(input_iter: &mut ParserIter) -> Result<Token, ParseEr
             break;
         }
     }
-    Ok(Token::NumberLiteral(val, ty, loc))
+    Ok(Token::NumLiteral(val, ty, loc))
 }
 
 #[derive(Clone)]
@@ -313,11 +404,12 @@ impl Token {
             Token::Ident(_, loc) => loc,
             Token::Bracket(_, loc) => loc,
             Token::String(_, loc) => loc,
-            Token::NumberLiteral(_, _, loc) => loc,
+            Token::NumLiteral(_, _, loc) => loc,
             Token::Assign(loc) => loc,
             Token::TypeSep(loc) => loc,
             Token::PathSep(loc) => loc,
             Token::ArgSep(loc) => loc,
+            Token::Op(_, loc) => loc,
             Token::EOF(loc) => loc
         }
     }
@@ -331,11 +423,12 @@ impl Display for Token {
             Token::Bracket(Bracket::Curly(side), _) => format!("{}\n", Bracket::Curly(side.clone())),
             Token::Bracket(bracket, _) => format!("{}", bracket),
             Token::String(string, _) => format!("\"{}\"", string),
-            Token::NumberLiteral(num, n_type, _) => format!("{}{}", num, n_type),
+            Token::NumLiteral(num, n_type, _) => format!("{}{}", num, n_type),
             Token::Assign(_) => "=".to_string(),
             Token::TypeSep(_) => ":".to_string(),
             Token::PathSep(_) => "::".to_string(),
             Token::ArgSep(_) => ",".to_string(),
+            Token::Op(op, _) => format!("{}", op),
             Token::EOF(_) => "".to_string()
         })
     }

@@ -145,7 +145,7 @@ fn parse_expr(mut token_iter: &mut TokIter) -> Result<Expr, ParseError> {
             }
             unexpected!(token_iter.next()?)?
         }
-        Token::NumberLiteral(_, _, _) => {
+        Token::NumLiteral(_, _, _) => {
             let num = token_iter.next()?;
             let loc = num.loc().clone();
             Ok(Expr::Value(value_from_numer_literal(num)?, loc))
