@@ -10,6 +10,8 @@ opt-level = 1
 
 [profile.release]
 opt-level = 3
+codegen-units = 1
+strip = "symbols"
 
 [dependencies]
 memmap2 = "0.5.7"

@@ -3,7 +3,7 @@ A compiler and bytecode-vm written in Rust for lithia (still to be created).
 
 Lithia will be inspired by Rust's amazing syntactical features (minus the lifetime and borrowing).
 
-last-update counter of shame: `02/10/2022`<br>
+last-update counter: `07/10/2022`<br>
 (please excuse my inability to update readmes consistently)
 
 ### What works right now
@@ -18,6 +18,8 @@ last-update counter of shame: `02/10/2022`<br>
   - [x] var declaration
   - [x] extern function calls
   - [x] assigning to variables
+  - [x] operators
+  - [x] implicit to_string
 - [x] nice compiler error messages
 
 ### Performance
@@ -71,6 +73,10 @@ Removed redundant read if not jumping: ~300ns to ~100ns on release
 - [ ] return values from if/for
 - [ ] continue/break/...
 - [ ] literal operators (+/-*)
+  - [x] binary op
+  - [ ] unary op
+  - [x] str join
+  - [x] implicit to_string
 - [ ] typedef
 - [ ] struct usage
 - [ ] item accessor
@@ -86,8 +92,8 @@ Removed redundant read if not jumping: ~300ns to ~100ns on release
   - [x] let x = ...;
   - [x] i = i + 1;
 - [ ] Simplify/Convert high level constructs to more primitive representation
-  - [ ] operator to function
-  - [ ] inferred types
+  - [x] operator to function
+  - [x] inferred types (partially)
 - [ ] Type and variable checking the ast for validity
 - [x] Converting ast to bytecode representation
 - [x] (also able to write bytecode manually, see [bytecode examples](src/bytecode_examples))
@@ -106,7 +112,7 @@ to always have a runnable and testable version.
 - [x] byte code builder
 - [x] compiling ast to byte code
 - [x] parsing code to ast (wip)
-- [ ] type checking and analyzing ast for validity
+- [x] type checking and analyzing ast for validity (partially)
 
 (the last two steps might be swappable)
 

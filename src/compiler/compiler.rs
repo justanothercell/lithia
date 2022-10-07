@@ -37,7 +37,7 @@ impl Compiler {
 
     fn compile_ast(&mut self, ast: Expr, builder: &mut BinBuilder) -> Result<(), ParseError> {
         match ast {
-            Expr::Call(func, loc) => {
+            Expr::Call(func, _, loc) => {
                 let fn_id = if let Some(fn_id) = self.needed_externs.get(&func.ident.0) {
                     fn_id.clone()
                 }
@@ -58,7 +58,7 @@ impl Compiler {
                     self.compile_ast(e, builder)?;
                 }
             },
-            Expr::Variable(var, loc) => {
+            Expr::Variable(var, _, loc) => {
                 if let Some(var_id) = self.variables.get(&var.0) {
                     builder.push_variable(var_id);
                 }
@@ -66,10 +66,10 @@ impl Compiler {
                     return Err(loc.error(format!("No variable with ident '{}'", var.0)))
                 }
             }
-            Expr::Value(val, _) => {
+            Expr::Value(val,_, _) => {
                 builder.push_value(val);
             }
-            Expr::While(box cond, box body, _) => {
+            Expr::While(box cond, box body, _, _) => {
                 let loop_start = builder.gen_marker();
                 let loop_end = builder.gen_marker();
                 builder.set_marker(&loop_start);
@@ -79,7 +79,7 @@ impl Compiler {
                 builder.jump(JmpType::Jmp, &loop_start);
                 builder.set_marker(&loop_end);
             }
-            Expr::If(box cond, box body_if, box body_else, _) => {
+            Expr::If(box cond, box body_if, box body_else, _, _) => {
                 let marker_else = builder.gen_marker();
                 let marker_end = builder.gen_marker();
                 self.compile_ast(cond, builder)?;

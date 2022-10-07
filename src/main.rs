@@ -6,6 +6,7 @@
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_yeet)]
 #![feature(trait_upcasting)]
+#![feature(inherent_associated_types)]
 
 extern crate core;
 
@@ -26,7 +27,7 @@ mod codegen_examples;
 
 fn main() {
 
-    let code = codegen_examples::code::example("write_file_option.li");
+    let code = codegen_examples::code::example("loop_while.li");
     println!();
     //let code = codegen_examples::ast::while_loop::example();
     //let code = codegen_examples::bytecode::for_loop::example();
@@ -38,20 +39,22 @@ fn main() {
     }
 
 
-    let mut vm = Executor {
-        stack_frames: vec![],
-        stack: vec![],
-        program: unsafe { Mmap::map(&File::open("test.lbc").expect("Could not open file!")).expect("Could not map file!") },
-        externs: vm::bindings::standard_bindings(),
-        current_marker: 0
-    };
+    {
+        let mut vm = Executor {
+            stack_frames: vec![],
+            stack: vec![],
+            program: unsafe { Mmap::map(&File::open("test.lbc").expect("Could not open file!")).expect("Could not map file!") },
+            externs: vm::bindings::standard_bindings(),
+            current_marker: 0,
+        };
 
-    println!("{:02X?}", vm.program.deref());
-    println!("Program length: {} bytes", vm.program.len());
-    println!();
+        println!("{:02X?}", vm.program.deref());
+        println!("Program length: {} bytes", vm.program.len());
+        println!();
 
-    let (ret, time) = vm.run(vec![]);
-    println!("execution returned: {:?} ({:?})", ret, time)
+        let (ret, time) = vm.run(vec![]);
+        println!("execution returned: {:?} ({:?})", ret, time)
+    }
 }
 
 

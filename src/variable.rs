@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::fmt::{Debug, Formatter};
 use std::collections::HashMap;
+use crate::vm::bindings::Function;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub(crate) struct Ident(pub(crate) String);
@@ -49,7 +50,7 @@ impl Debug for VarObject {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Type {
     Empty,
 
@@ -78,6 +79,20 @@ pub(crate) enum Type {
     Object
 }
 
+pub(crate) trait ToOneType {
+    fn to_one(self) -> Type;
+}
+
+impl ToOneType for Vec<Type> {
+    fn to_one(mut self) -> Type {
+        match self.len() {
+            0 => Type::Empty,
+            1 => self.pop().unwrap(),
+            _ => Type::Tuple(self)
+        }
+    }
+}
+
 impl Type {
     pub(crate) fn variant(&self) -> u8{
         match &self {
@@ -101,6 +116,52 @@ impl Type {
             Type::Enum(_) => 17u8,
             Type::Fn(_, _) => 18u8,
             Type::Object => 19u8,
+        }
+    }
+
+    pub(crate) fn to_string(&self) -> String{
+        match &self {
+            Type::Empty => "Empty",
+            Type::I8 => "i8",
+            Type::I16 => "i16",
+            Type::I32 => "i32",
+            Type::I64 => "i64",
+            Type::I128 => "i128",
+            Type::U8 => "u8",
+            Type::U16 => "u16",
+            Type::U32 => "u32",
+            Type::U64 => "u64",
+            Type::U128 => "u128",
+            Type::F32 => "f32",
+            Type::F64 => "f64",
+            Type::Bool => "bool",
+            Type::String => "string",
+            Type::Tuple(_) => unimplemented!(),
+            Type::Struct(_) => unimplemented!(),
+            Type::Enum(_) => unimplemented!(),
+            Type::Fn(_, _) => unimplemented!(),
+            Type::Object => unimplemented!(),
+        }.to_string()
+    }
+
+    pub(crate) fn from_str(str: &str) -> Option<Type> {
+        match str {
+            "Empty" => Some(Type::Empty),
+            "i8" => Some(Type::I8),
+            "i16" => Some(Type::I16),
+            "i32" => Some(Type::I32),
+            "i64" => Some(Type::I64),
+            "i128" => Some(Type::I128),
+            "u8" => Some(Type::U8),
+            "u16" => Some(Type::U16),
+            "u32" => Some(Type::U32),
+            "u64" => Some(Type::U64),
+            "u128" => Some(Type::U128),
+            "f32" => Some(Type::F32),
+            "f64" => Some(Type::F64),
+            "bool" => Some(Type::Bool),
+            "string" => Some(Type::String),
+            _ => None
         }
     }
 
@@ -269,7 +330,7 @@ impl Type {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) enum Value {
     Empty,
 
@@ -294,7 +355,7 @@ pub(crate) enum Value {
     Tuple(Vec<Value>),
     Struct(HashMap<Ident, Value>),
     Enum(HashMap<Ident, Value>),
-    Fn(fn(Vec<Value>) -> Vec<Value>, Vec<Type>, Vec<Type>),
+    Fn(Function),
     Object(VarObject)
 }
 
@@ -324,7 +385,7 @@ impl Value {
             Value::Tuple(vals) => Type::Tuple(vals.iter().map(|v| v.get_type()).collect()),
             Value::Struct(fields) => Type::Struct(fields.iter().map(|(k, v)| (k.clone(), v.get_type())).collect()),
             Value::Enum(variants) => Type::Enum(variants.iter().map(|(k, v)| (k.clone(), v.get_type())).collect()),
-            Value::Fn(_fn, args, ret) => Type::Fn(args.clone(), ret.clone()),
+            Value::Fn(Function(_fn, args, ret)) => Type::Fn(args.clone(), ret.clone()),
             Value::Object(_) => Type::Object
         }
     }
@@ -352,7 +413,7 @@ impl Value {
             Value::Tuple(_) => unimplemented!(),
             Value::Struct(_) => unimplemented!(),
             Value::Enum(_) => unimplemented!(),
-            Value::Fn(_, _, _) => panic!("Unable to express function as a literal value and therefore cannot parse from Value::Fn to &[u8]"),
+            Value::Fn(_) => panic!("Unable to express function as a literal value and therefore cannot parse from Value::Fn to &[u8]"),
             Value::Object(_) => panic!("Unable to express type as a literal value and therefore cannot parse from Value::Fn to &[u8]"),
         });
         s
@@ -402,75 +463,6 @@ impl Value {
             //Fn(fn(&[Value]) -> Value, Vec<Type>, Type)
             18 => panic!("Unable to express function as a literal value and therefore cannot parse from &[u8] to Value::Fn"),
             invalid => unreachable!("This variable type does not exist: {}", invalid)
-        }
-    }
-}
-
-impl Debug for Value {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        match self {
-            Value::I8(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "I8", &__self_0)
-            }
-            Value::I16(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "I16", &__self_0)
-            }
-            Value::I32(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "I32", &__self_0)
-            }
-            Value::I64(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "I64", &__self_0)
-            }
-            Value::I128(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "I128", &__self_0)
-            }
-            Value::U8(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "U8", &__self_0)
-            }
-            Value::U16(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "U16", &__self_0)
-            }
-            Value::U32(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "U32", &__self_0)
-            }
-            Value::U64(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "U64", &__self_0)
-            }
-            Value::U128(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "U128", &__self_0)
-            }
-            Value::F32(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "F32", &__self_0)
-            }
-            Value::F64(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "F64", &__self_0)
-            }
-            Value::Bool(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Bool", &__self_0)
-            }
-            Value::String(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "String", &__self_0)
-            }
-            Value::Empty => ::core::fmt::Formatter::write_str(f, "Empty"),
-            Value::Tuple(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Tuple", &__self_0)
-            }
-            Value::Struct(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Struct", &__self_0)
-            }
-            Value::Enum(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Enum", &__self_0)
-            }
-            Value::Fn(__self_0, __self_1, __self_2) => {
-                ::core::fmt::Formatter::debug_tuple_field2_finish(
-                    f, "Fn", &__self_1, &__self_2,
-                )
-            }
-            Value::Object(__self_0) => {
-                ::core::fmt::Formatter::debug_struct(
-                    f, &*format!("{:?}", &__self_0),
-                ).finish()
-            }
         }
     }
 }

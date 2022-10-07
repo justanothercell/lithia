@@ -17,11 +17,11 @@ start scope_global
 end scope_global
  */
 
-use std::collections::btree_map::BTreeMap;
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 use memmap2::Mmap;
 use crate::variable::{Type, Value};
+use crate::vm::bindings::Function;
 
 #[repr(u8)]
 #[derive(Debug, Clone)]
@@ -93,7 +93,7 @@ pub(crate) struct Executor{
     pub(crate) stack_frames: Vec<Frame>,
     pub(crate) stack: Vec<Value>,
     pub(crate) program: Mmap,
-    pub(crate) externs: HashMap<String, Value>, // has to be loaded only once, so Hashmap suffices
+    pub(crate) externs: HashMap<String, Function>, // has to be loaded only once, so Hashmap suffices
     pub(crate) current_marker: usize
 }
 
@@ -169,7 +169,7 @@ impl Executor {
                 6 => {
                     let id = self.next_in(u8_id) as usize;
                     let func = self.frame().locals.get(&id).expect(&format!("Unable to find local (function) variable with id {}", id)).clone();
-                    if let Value::Fn(fun, t_args, _t_ret) = func {
+                    if let Value::Fn(Function(fun, t_args, _t_ret)) = func {
                         let args = self.stack.split_off(self.stack.len() - t_args.len());
                         self.stack.append(&mut fun.call((args,)));
                     }
@@ -208,7 +208,7 @@ impl Executor {
                     let name = self.next_in(Type::u8_str);
                     let _signature = self.next_in(Type::from_u8);
                     let ex = self.externs.get(&name).expect(&format!("Could not find extern function {}", name)).clone();
-                    self.frame().locals.insert(id, ex);
+                    self.frame().locals.insert(id, Value::Fn(ex));
                     log_step!("loaded extern {} {:?} as {}", name, signature, id);
                 }
                 //Jump

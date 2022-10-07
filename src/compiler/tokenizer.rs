@@ -30,23 +30,28 @@ pub(crate) enum Token {
     EOF(Loc)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Op{
     Add,
     Sub,
     Mul,
     Div,
     Mod,
+    TrueMod,
     Pow,
-    Ls,
+    Lt,
     Le,
     Gt,
     Ge,
+    Eq,
+    Ne,
     And,
     Or,
     BitAnd,
     BitOr,
-    Xor
+    BitXor,
+    Lshift,
+    Rshift
 }
 
 impl Display for Op {
@@ -57,18 +62,85 @@ impl Display for Op {
             Op::Mul => "*",
             Op::Div => "/",
             Op::Mod => "%",
+            Op::TrueMod => "%%",
             Op::Pow => "**",
-            Op::Ls => "<",
+            Op::Lt => "<",
             Op::Le => "<=",
             Op::Gt => ">",
             Op::Ge => ">=",
+            Op::Eq => "==",
+            Op::Ne => "==",
             Op::And => "&&",
             Op::Or => "||",
             Op::BitAnd => "&",
             Op::BitOr => "|",
-            Op::Xor => "^",
+            Op::BitXor => "^",
+            Op::Lshift => "<<",
+            Op::Rshift => ">>"
         })
     }
+}
+
+impl Op {
+    pub(crate) fn group(&self) -> OpGroup {
+        match self {
+            Op::Add => OpGroup::Dash,
+            Op::Sub => OpGroup::Dash,
+            Op::Mul => OpGroup::Dot,
+            Op::Div => OpGroup::Dot,
+            Op::Mod => OpGroup::Dot,
+            Op::TrueMod => OpGroup::Pow,
+            Op::Pow => OpGroup::Pow,
+            Op::Lt => OpGroup::Comp,
+            Op::Le => OpGroup::Comp,
+            Op::Gt => OpGroup::Comp,
+            Op::Ge => OpGroup::Comp,
+            Op::Eq => OpGroup::Comp,
+            Op::Ne => OpGroup::Comp,
+            Op::And => OpGroup::Bool,
+            Op::Or => OpGroup::Bool,
+            Op::BitAnd => OpGroup::Bit,
+            Op::BitOr => OpGroup::Bit,
+            Op::BitXor => OpGroup::Bit,
+            Op::Lshift => OpGroup::Bit,
+            Op::Rshift => OpGroup::Bit
+        }
+    }
+
+    pub(crate) fn fn_op(&self) -> String{
+        match self {
+            Op::Add => "add",
+            Op::Sub => "sub",
+            Op::Mul => "mul",
+            Op::Div => "div",
+            Op::Mod => "rem",
+            Op::TrueMod => "rem_euclid",
+            Op::Pow => "pow",
+            Op::Lt => "lt",
+            Op::Le => "le",
+            Op::Gt => "gt",
+            Op::Ge => "ge",
+            Op::Eq => "eq",
+            Op::Ne => "ne",
+            Op::And => "and",
+            Op::Or => "or",
+            Op::BitAnd => "bitand",
+            Op::BitOr => "bitor",
+            Op::BitXor => "bitxor",
+            Op::Lshift => "shl",
+            Op::Rshift => "shr"
+        }.to_string()
+    }
+}
+
+#[derive(PartialEq)]
+pub(crate) enum OpGroup {
+    Pow,
+    Dot,
+    Dash,
+    Bit,
+    Comp,
+    Bool
 }
 
 pub(crate) fn value_from_numer_literal(tok: Token) -> Result<Value, ParseError> {
@@ -133,10 +205,6 @@ pub(crate) fn tokenize(code: &str) -> Result<Tokens, ParseError> {
             tokens.push(Token::ArgSep(input_iter.here()));
             input_iter.next();
         }
-        else if c == '=' {
-            tokens.push(Token::Assign(input_iter.here()));
-            input_iter.next();
-        }
         else if c == ':' {
             input_iter.next();
             if let Some(token) = tokens.pop() {
@@ -152,6 +220,93 @@ pub(crate) fn tokenize(code: &str) -> Result<Tokens, ParseError> {
                 tokens.push(Token::TypeSep(input_iter.here()))
             }
         }
+        // IMPORTANT: operators is before brackets so that < and > land in operators!
+        // their parsing is still included in brackets for redundancy. when parsing brackets, also check for op < >!
+        // Also takes care of Assign "="
+        else if c.is_contained_in("+-*/%=&|^><!") {
+            let loc = input_iter.here();
+            input_iter.next();
+            tokens.push(Token::Op(match c {
+                '+' => Op::Add,
+                '-' => Op::Sub,
+                '*' => {
+                    if let Some('*') = input_iter.peek() {
+                        input_iter.next();
+                        Op::Pow
+                    } else {
+                        Op::Mul
+                    }
+                },
+                '/' => Op::Div,
+                '%' => {
+                    if let Some('%') = input_iter.peek() {
+                        input_iter.next();
+                        Op::TrueMod
+                    } else {
+                        Op::Mod
+                    }
+                },
+                '<' => {
+                    if let Some('=') = input_iter.peek() {
+                        input_iter.next();
+                        Op::Le
+                    } else if let Some('<') = input_iter.peek() {
+                        input_iter.next();
+                        Op::Lshift
+                    } else {
+                        Op::Lt
+                    }
+                },
+                '>' => {
+                    if let Some('=') = input_iter.peek() {
+                        input_iter.next();
+                        Op::Ge
+                    } else if let Some('>') = input_iter.peek() {
+                        input_iter.next();
+                        Op::Rshift
+                    } else {
+                        Op::Gt
+                    }
+                },
+                '=' => {
+                    if let Some('=') = input_iter.peek() {
+                        input_iter.next();
+                        Op::Eq
+                    } else {
+                        tokens.push(Token::Assign(input_iter.here()));
+                        continue
+                    }
+                },
+                '!' => {
+                    if let Some('=') = input_iter.peek() {
+                        input_iter.next();
+                        Op::Ne
+                    } else {
+                        unimplemented!()
+                    }
+                }
+                '&' => {
+                    if let Some('&') = input_iter.peek() {
+                        input_iter.next();
+                        Op::And
+                    }
+                    else {
+                        Op::BitAnd
+                    }
+                },
+                '|' => {
+                    if let Some('|') = input_iter.peek() {
+                        input_iter.next();
+                        Op::Or
+                    }
+                    else {
+                        Op::BitOr
+                    }
+                },
+                '^' => Op::BitXor,
+                _ => unreachable!()
+            }, loc));
+        }
         else if c.is_contained_in("[]{}<>()") {
             tokens.push(Token::Bracket(match c {
                 '{' => Bracket::Curly(Side::Open),
@@ -165,55 +320,6 @@ pub(crate) fn tokenize(code: &str) -> Result<Tokens, ParseError> {
                 _ => unreachable!()
             }, input_iter.here()));
             input_iter.next();
-        }
-        else if c.is_contained_in("+-*/%&|><") {
-            let loc = input_iter.here();
-            input_iter.next();
-            tokens.push(Token::Op(match c {
-                '+' => Op::Add,
-                '-' => Op::Sub,
-                '*' => {
-                    if let Some('*') = input_iter.peek() {
-                        Op::Pow
-                    } else {
-                        Op::Mul
-                    }
-                },
-                '/' => Op::Div,
-                '%' => Op::Mod,
-                '<' => {
-                    if let Some('=') = input_iter.peek() {
-                        Op::Le
-                    } else {
-                        Op::Ls
-                    }
-                },
-                '>' => {
-                    if let Some('=') = input_iter.peek() {
-                        Op::Le
-                    } else {
-                        Op::Ls
-                    }
-                },
-                '&' => {
-                    if let Some('&') = input_iter.peek() {
-                        Op::And
-                    }
-                    else {
-                        Op::BitAnd
-                    }
-                },
-                '|' => {
-                    if let Some('|') = input_iter.peek() {
-                        Op::Or
-                    }
-                    else {
-                        Op::BitOr
-                    }
-                },
-                '^' => Op::Xor,
-                _ => unreachable!()
-            }, loc));
         }
         else if c == '"' {
             tokens.push(tokenize_string(&mut input_iter))

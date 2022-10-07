@@ -16,16 +16,16 @@ pub(crate) fn example() -> Vec<u8> {
 
     let ast = Expr::Stmts(vec![
         // i = 0
-        Stmt::Create(var_i.clone(), Expr::Value(Value::I32(0), Loc::dummy()), Loc::dummy()),
+        Stmt::Create(var_i.clone(), Expr::Value(Value::I32(0),  Some(Type::I32), Loc::dummy()), Loc::dummy()),
         Stmt::Expr(Expr::While(
             // condition: i < 10
             Box::from(Expr::Call(FuncCall {
                 ident: i32_lt.clone(),
                 args: vec![
-                    Expr::Variable(var_i.clone(), Loc::dummy()),
-                    Expr::Value(Value::I32(10), Loc::dummy())
+                    Expr::Variable(var_i.clone(), Some(Type::I32), Loc::dummy()),
+                    Expr::Value(Value::I32(10), Some(Type::I32), Loc::dummy())
                 ]
-            }, Loc::dummy())),
+            }, Some(Type::Bool), Loc::dummy())),
             // === body ===
             Box::from(Expr::Stmts(vec![
                 Stmt::Expr(Expr::Call(
@@ -36,34 +36,34 @@ pub(crate) fn example() -> Vec<u8> {
                                 FuncCall {
                                     ident: string_join.clone(),
                                     args: vec![
-                                        Expr::Value(Value::String("Counting: ".to_string()), Loc::dummy()),
+                                        Expr::Value(Value::String("Counting: ".to_string()), Some(Type::String), Loc::dummy()),
                                         Expr::Call(
                                             FuncCall {
                                                 ident: i32_to_string.clone(),
                                                 args: vec![
-                                                    Expr::Variable(var_i.clone(), Loc::dummy())
+                                                    Expr::Variable(var_i.clone(), Some(Type::String), Loc::dummy())
                                                 ]
-                                            }, Loc::dummy()
+                                            }, Some(Type::String), Loc::dummy()
                                         )
                                     ]
-                                }, Loc::dummy()
+                                }, Some(Type::String), Loc::dummy()
                             )
                         ]
-                    }, Loc::dummy()
+                    }, Some(Type::Empty), Loc::dummy()
                 ), Loc::dummy()),
                 // i += 1
                 Stmt::Assign(var_i.clone(), Expr::Call(
                     FuncCall {
                         ident: i32_add.clone(),
                         args: vec![
-                            Expr::Variable(var_i.clone(), Loc::dummy()),
-                            Expr::Value(Value::I32(1), Loc::dummy())
+                            Expr::Variable(var_i.clone(), Some(Type::I32), Loc::dummy()),
+                            Expr::Value(Value::I32(1), Some(Type::I32), Loc::dummy())
                         ]
-                    }, Loc::dummy()
+                    }, Some(Type::I32), Loc::dummy()
                 ), Loc::dummy())
-            ], None, Type::Empty, Loc::dummy())), Loc::dummy()
+            ], None, Some(Type::Empty), Loc::dummy())), Some(Type::Empty), Loc::dummy()
         ), Loc::dummy())
-    ], None, Type::Empty, Loc::dummy());
+    ], None, Some(Type::Empty), Loc::dummy());
 
 
 

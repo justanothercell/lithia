@@ -10,25 +10,49 @@ pub(crate) struct FuncCall {
 
 #[derive(Debug, Clone)]
 pub(crate) enum Expr {
-    Call(FuncCall, Loc),
-    Stmts(Vec<Stmt>, Option<Box<Expr>>, Type, Loc),
-    Variable(Ident, Loc),
-    Value(Value, Loc),
-    While(Box<Expr>, Box<Expr>, Loc),
-    If(Box<Expr>, Box<Expr>, Box<Expr>, Loc),
+    Call(FuncCall, Option<Type>, Loc),
+    Stmts(Vec<Stmt>, Option<Box<Expr>>, Option<Type>, Loc),
+    Variable(Ident, Option<Type>, Loc),
+    Value(Value, Option<Type>, Loc),
+    While(Box<Expr>, Box<Expr>, Option<Type>, Loc),
+    If(Box<Expr>, Box<Expr>, Box<Expr>, Option<Type>, Loc),
     Empty(Loc)
 }
 
 impl Expr {
     pub(crate) fn loc(&self) -> &Loc {
         match self {
-            Expr::Call(_, loc) => loc,
+            Expr::Call(_, _, loc) => loc,
             Expr::Stmts(_, _, _, loc) => loc,
-            Expr::Variable(_, loc) => loc,
-            Expr::Value(_, loc) => loc,
-            Expr::While(_, _, loc) => loc,
-            Expr::If(_, _, _, loc) => loc,
+            Expr::Variable(_, _, loc) => loc,
+            Expr::Value(_, _, loc) => loc,
+            Expr::While(_, _, _, loc) => loc,
+            Expr::If(_, _, _, _, loc) => loc,
             Expr::Empty(loc) => loc,
+        }
+    }
+
+    pub(crate) fn get_type(&self) -> &Option<Type>{
+        match self {
+            Expr::Call(_, t, _) => t,
+            Expr::Stmts(_, _, t, _) => t,
+            Expr::Variable(_, t, _) => t,
+            Expr::Value(_, t, _) => t,
+            Expr::While(_, _, t, _) => t,
+            Expr::If(_, _, _, t, _) => t,
+            Expr::Empty(_) => &Some(Type::Empty),
+        }
+    }
+
+    pub(crate) fn set_type(&mut self, ty: Option<Type>){
+        match self {
+            Expr::Call(_, t, _) => *t = ty,
+            Expr::Stmts(_, _, t, _) => *t = ty,
+            Expr::Variable(_, t, _) => *t = ty,
+            Expr::Value(_, t, _) => *t = ty,
+            Expr::While(_, _, t, _) => *t = ty,
+            Expr::If(_, _, _, t, _) => *t = ty,
+            Expr::Empty(_) => (),
         }
     }
 }
@@ -69,8 +93,8 @@ impl Display for Stmt {
 impl Display for Expr {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", match self {
-            Expr::Call(func_call, _) => format!("{}({})", func_call.ident.0, func_call.args.iter().map(|s| format!("{}", s)).collect::<Vec<String>>().join(", ")),
-            Expr::Stmts(stmts, expr, _type, _) => {
+            Expr::Call(func_call, _, _) => format!("{}({})", func_call.ident.0, func_call.args.iter().map(|s| format!("{}", s)).collect::<Vec<String>>().join(", ")),
+            Expr::Stmts(stmts, expr, _, _) => {
                 if let Some(e) = expr {
                     format!("{{\n{}\n{}\n}}", stmts.iter().map(|s| format!("{}", s)).collect::<Vec<String>>().join("\n"), e)
                 }
@@ -78,10 +102,10 @@ impl Display for Expr {
                     format!("{{\n{}\n}}", stmts.iter().map(|s| format!("{}", s)).collect::<Vec<String>>().join("\n"))
                 }
             },
-            Expr::Variable(var, _) => format!("{}", var.0),
-            Expr::Value(val, _) => format!("{:?}", val),
-            Expr::While(cond, body, _) => format!("while {} {{\n{}\n}}", cond, textwrap::indent(&format!("{}", body), "    ")),
-            Expr::If(cond, body_if, body_else, _) => format!("if {} {{\n{}\n}}\nelse {{\n{}\n}}", cond, textwrap::indent(&format!("{}", body_if), "    "), textwrap::indent(&format!("{}", body_else), "    ")),
+            Expr::Variable(var, _, _) => format!("{}", var.0),
+            Expr::Value(val, _, _) => format!("{:?}", val),
+            Expr::While(cond, body, _, _) => format!("while {} {{\n{}\n}}", cond, textwrap::indent(&format!("{}", body), "    ")),
+            Expr::If(cond, body_if, body_else, _, _) => format!("if {} {{\n{}\n}}\nelse {{\n{}\n}}", cond, textwrap::indent(&format!("{}", body_if), "    "), textwrap::indent(&format!("{}", body_else), "    ")),
             Expr::Empty(_) => format!("")
         })
     }
