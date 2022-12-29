@@ -1,7 +1,0 @@
-let file: File = File::create("foo.txt");
-let i: i32 = 0i32;
-
-while i < 10i32 {
-    File::write(file, "Hello, world!");
-    i = i + 1i32;
-}
