@@ -1,5 +1,5 @@
 # LITHIA
-A statically compiled rust-inspired language compiled with LLVM
+A compiled rust-inspired language using LLVM written in rust
 
 ## Topics
 #### [Structure & Workflow](./structure_workflow.md)
