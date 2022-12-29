@@ -1,4 +1,12 @@
 # Lithia 
+
+---
+
+### ATTENTION:
+This project was replaced by [lithia-csnet](https://github.com/DragonFIghter603/lithia_csnet)
+
+---
+
 A compiler and bytecode-vm written in Rust for lithia (still to be created).
 
 Lithia will be inspired by Rust's amazing syntactical features (minus the lifetime and borrowing).
