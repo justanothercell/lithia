@@ -22,7 +22,7 @@ pub(crate) enum Token {
     Bracket(Bracket, Loc),
     String(String, Loc),
     NumLiteral(String, String, Loc),
-    Assign(Loc),
+    Assign(Option<Op>, Loc),
     TypeSep(Loc),
     PathSep(Loc),
     ArgSep(Loc),
@@ -31,7 +31,7 @@ pub(crate) enum Token {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Op{
+pub(crate) enum Op {
     Add,
     Sub,
     Mul,
@@ -273,7 +273,16 @@ pub(crate) fn tokenize(code: &str) -> Result<Tokens, ParseError> {
                         input_iter.next();
                         Op::Eq
                     } else {
-                        tokens.push(Token::Assign(input_iter.here()));
+                        let op = if let Some(Token::Op(op, _)) = tokens.last() {
+                            Some(op.clone())
+                        } else {
+                            None
+                        };
+                        if op.is_some() {
+                            tokens.pop();
+                        }
+
+                        tokens.push(Token::Assign(op, input_iter.here()));
                         continue
                     }
                 },
@@ -511,7 +520,7 @@ impl Token {
             Token::Bracket(_, loc) => loc,
             Token::String(_, loc) => loc,
             Token::NumLiteral(_, _, loc) => loc,
-            Token::Assign(loc) => loc,
+            Token::Assign(_, loc) => loc,
             Token::TypeSep(loc) => loc,
             Token::PathSep(loc) => loc,
             Token::ArgSep(loc) => loc,
@@ -530,7 +539,8 @@ impl Display for Token {
             Token::Bracket(bracket, _) => format!("{}", bracket),
             Token::String(string, _) => format!("\"{}\"", string),
             Token::NumLiteral(num, n_type, _) => format!("{}{}", num, n_type),
-            Token::Assign(_) => "=".to_string(),
+            Token::Assign(None, _) => format!("="),
+            Token::Assign(Some(op), _) => format!("{}=", op),
             Token::TypeSep(_) => ":".to_string(),
             Token::PathSep(_) => "::".to_string(),
             Token::ArgSep(_) => ",".to_string(),

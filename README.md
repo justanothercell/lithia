@@ -18,7 +18,7 @@ last-update counter: `07/10/2022`<br>
   - [x] var declaration
   - [x] extern function calls
   - [x] assigning to variables
-  - [x] operators
+  - [x] binary operators
   - [x] implicit to_string
 - [x] nice compiler error messages
 

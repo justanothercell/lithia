@@ -21,6 +21,8 @@ pub(crate) fn example(file: &str) -> Vec<u8> {
 
     let ast = parse(tokens, &mut ctx).expect("Error parsing");
 
+    println!("Ast:\n{}", ast);
+
     let externs = ctx.used_externs();
 
     println!("{:?}", externs.keys());

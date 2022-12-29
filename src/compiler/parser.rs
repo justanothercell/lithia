@@ -233,10 +233,15 @@ fn parse_scope(mut token_iter: &mut TokIter, ctx: &mut ParseContext) -> Result<E
                     stmts.push(parse_var_creation(&mut token_iter, loc.clone(), ctx)?);
                 }
                 else { // variable assignment
-                    if let Token::Assign(_) = token_iter.peek_ahead(1)? {
+                    if let Token::Assign(_, _) = token_iter.peek_ahead(1)? {
                         if let Token::Ident(ident, _) = token_iter.next()? {
-                            expect_tok!(token_iter.next()?, Token::Assign);
-                            let expr = parse_expr(token_iter, ctx)?;
+                            let option_assign_op = if let Token::Assign(Some(op), _) = token_iter.next()? {
+                                Some((Expr::Variable(Ident(ident.clone()), ctx.var_get_type(&ident).clone(), loc.clone()), op))
+                            }
+                            else {
+                                None
+                            };
+                            let expr = parse_expr_raw(token_iter, ctx, option_assign_op)?;
                             stmts.push(Stmt::Assign(Ident(ident), expr, loc.clone()));
                             expect_tok!(token_iter.next()?, Token::EndStmt);
                         }
@@ -269,11 +274,20 @@ fn parse_scope(mut token_iter: &mut TokIter, ctx: &mut ParseContext) -> Result<E
 }
 
 fn parse_expr(token_iter: &mut TokIter, ctx: &mut ParseContext) -> Result<Expr, ParseError> {
+    parse_expr_raw(token_iter, ctx, None)
+}
+
+fn parse_expr_raw(token_iter: &mut TokIter, ctx: &mut ParseContext, assign_op: Option<(Expr, Op)>) -> Result<Expr, ParseError> {
     enum ExprChain {
         Expr(Expr),
         Op(Op, Loc)
     }
-    let mut expr_chain = vec![ExprChain::Expr(parse_single_expr(token_iter, ctx)?)];
+    let mut expr_chain = if let Some((ident, op)) = assign_op {
+        let loc = ident.loc().clone();
+        vec![ExprChain::Expr(ident), ExprChain::Op(op, loc), ExprChain::Expr(parse_single_expr(token_iter, ctx)?)]
+    } else {
+        vec![ExprChain::Expr(parse_single_expr(token_iter, ctx)?)]
+    };
 
     loop {
         match token_iter.peek()? {
