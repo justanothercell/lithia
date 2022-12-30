@@ -16,16 +16,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7d76083a-46e7-4914-8e87-b068d29779f6" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/rust-toolchain" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/ast/mod.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/compiler.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/error.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/lib/mod.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/llvm/mod.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/source/mod.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/tokens/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.github/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/.github/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.github/structure_workflow.md" beforeDir="false" afterPath="$PROJECT_DIR$/.github/structure_design.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/source/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/source/mod.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -159,7 +151,7 @@
       <option name="presentableId" value="Default" />
       <updated>1672404696241</updated>
       <workItem from="1672404698043" duration="169000" />
-      <workItem from="1672404892178" duration="4459000" />
+      <workItem from="1672404892178" duration="4519000" />
     </task>
     <servers />
   </component>
