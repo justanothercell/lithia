@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 use crate::source::{CodePoint, Source};
 
@@ -70,8 +70,15 @@ impl Span {
     }
 }
 
-impl Debug for Span {
+impl Display for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}..{}", self.start, self.end)
+        if self.start == self.end {
+            let (l, p) = loc.start().pos();
+            write!("{}:{}", l, p)
+        } else {
+            let (sl, sp) = self.start().pos();
+            let (el, ep) = self.end().pos();
+            write!("{}:{}..{}:{}", sl, sp, el, ep)
+        }
     }
 }

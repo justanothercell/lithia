@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::{BufRead, Read};
 use std::rc::Rc;
 use std::string::ParseError;
+use crate::source::span::Span;
 
 #[derive(PartialEq)]
 pub(crate) struct Source {

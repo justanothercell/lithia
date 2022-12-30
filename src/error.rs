@@ -75,16 +75,10 @@ impl Display for ParseError {
                    String::new()
                },
                if let Some(loc) = &self.loc {
-                   format!("{}\n{}",
-                           if loc.start == loc.end {
-                               let (l, p) = loc.start().pos();
-                               format!("\n\nat: {}: {}:{}", loc.source.st, l, p)
-                           } else {
-                               let (sl, sp) = loc.start().pos();
-                               let (el, ep) = loc.end().pos();
-                               format!("\n\nat: {}: {}:{}..{}:{}", loc.source.st, sl, sp, el, ep)
-                           },
-                           loc.render_span_code(2)
+                   format!("\n\n{}: {}\n{}",
+                       loc.source.st,
+                       loc
+                       loc.render_span_code(2)
                    )
                } else {
                    String::new()
