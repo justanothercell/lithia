@@ -1,3 +1,5 @@
+use crate::source::span::Span;
+
 enum Expr {
     Literal(AstLiteral),
     Variable(Ident),
