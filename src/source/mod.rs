@@ -58,17 +58,16 @@ impl Debug for SourceType {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CodePoint(Rc<Source>, usize);
 
-#[allow(non_camel_case_types)]
-type line = usize;
-#[allow(non_camel_case_types)]
-type index_in_line = usize;
-
 impl CodePoint {
+    #[allow(non_camel_case_types)]
+    type line = usize;
+    #[allow(non_camel_case_types)]
+    type index_in_line = usize;
     pub(crate) fn span(self) -> Span {
         Span::single(self)
     }
 
-    pub(crate) fn pos(&self) -> (line, index_in_line){
+    pub(crate) fn pos(&self) -> (Self::line, Self::index_in_line){
         let first_part = &self.0.source[0..self.1];
         let mut lines_split = first_part.split("\n").collect::<Vec<&str>>();
         (lines_split.len(), lines_split.pop().unwrap().len())

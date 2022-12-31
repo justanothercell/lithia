@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::string::ParseError;
+use crate::error::ParseET;
 
 pub(crate) trait Indexable {
     type Elem;
@@ -21,7 +21,7 @@ impl<T: Indexable> Indexer<T> {
         }
     }
 
-    pub(crate) fn get(&self, index: usize) -> Result<char, ParseET> {
+    pub(crate) fn get(&self, index: usize) -> Result<char, ParseError> {
         if index >= self.list.len() {
             Err(ParseET::EOF.at(self.here().span()))
         }
