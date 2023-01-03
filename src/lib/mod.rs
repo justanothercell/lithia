@@ -1,1 +1,1 @@
-mod indexer;
+pub(crate) mod indexer;

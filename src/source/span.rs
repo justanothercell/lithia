@@ -46,6 +46,12 @@ impl Span {
         self.end = usize::max(self.end, p.1);
     }
 
+    pub(crate) fn combine(&mut self, s: Span) {
+        assert!(Rc::ptr_eq(&self.source, &s.source), "Spans should be of same Source");
+        self.start = usize::min(self.start, s.start);
+        self.end = usize::max(self.end, s.end);
+    }
+
     pub(crate) fn render_span_code(&self, line_pad: usize) -> String {
         let (sl, sp) = self.start().pos();
         let (el, ep) = self.end().pos();
@@ -70,15 +76,12 @@ impl Span {
     }
 }
 
-impl Display for Span {
+impl Debug for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.start == self.end {
-            let (l, p) = loc.start().pos();
-            write!("{}:{}", l, p)
+            write!(f, "{:?}", self.start())
         } else {
-            let (sl, sp) = self.start().pos();
-            let (el, ep) = self.end().pos();
-            write!("{}:{}..{}:{}", sl, sp, el, ep)
+            write!(f, "{:?}..{:?}", self.start(), self.end())
         }
     }
 }

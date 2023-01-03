@@ -1,10 +1,14 @@
 use std::rc::Rc;
-use crate::error::ParseET;
+use crate::error::{ParseError, ParseET};
+use crate::source::{Source};
+use crate::source::span::Span;
 
 pub(crate) trait Indexable {
-    type Elem;
-    fn get(self, i: usize) -> Result<Self::Elem, ParseError>;
-    fn len(self) -> usize;
+    type Item;
+    const ITEM_NAME: &'static str;
+    fn get(&self, i: usize) -> Self::Item;
+    fn loc_at(&self, i: usize) -> Span;
+    fn len(&self) -> usize;
 }
 
 #[derive(Clone)]
@@ -21,12 +25,12 @@ impl<T: Indexable> Indexer<T> {
         }
     }
 
-    pub(crate) fn get(&self, index: usize) -> Result<char, ParseError> {
+    pub(crate) fn get(&self, index: usize) -> Result<T::Item, ParseError> {
         if index >= self.list.len() {
-            Err(ParseET::EOF.at(self.here().span()))
+            Err(ParseET::EOF.at(self.here()).when(format!("trying to get {}", T::ITEM_NAME)))
         }
         else {
-            Ok(self.source.source.as_bytes()[index] as char)
+            Ok(self.list.get(index))
         }
     }
 
@@ -38,23 +42,25 @@ impl<T: Indexable> Indexer<T> {
         self.list.len() - self.index
     }
 
-    pub(crate) fn this(&self) -> Result<char, ParseError> {
+    pub(crate) fn this(&self) -> Result<T::Item, ParseError> {
         self.get(self.index)
     }
 
-    pub(crate) fn here(&self) -> CodePoint {
-        CodePoint(self.source.clone(), self.index)
+    pub(crate) fn here(&self) -> Span {
+        if self.index >= self.list.len() {
+            self.list.loc_at(self.index)
+        } else { self.list.loc_at(self.index) }
     }
 
     pub(crate) fn next(&mut self){
         self.index += 1;
     }
 
-    pub(crate) fn peek(&self) -> Result<char, ParseError>{
+    pub(crate) fn peek(&self) -> Result<T::Item, ParseError>{
         self.get(self.index + 1)
     }
 
-    pub(crate) fn peekn(&self, n: isize) -> Result<char, ParseError>{
+    pub(crate) fn peekn(&self, n: isize) -> Result<T::Item, ParseError>{
         self.get((self.index as isize + n) as usize)
     }
 }

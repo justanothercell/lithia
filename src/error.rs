@@ -1,5 +1,6 @@
 use std::fmt::{Display, Formatter};
 use crate::source::span::Span;
+use crate::tokens::{Literal, NumLit};
 
 #[derive(Debug)]
 pub(crate) struct ParseError {
@@ -75,9 +76,9 @@ impl Display for ParseError {
                    String::new()
                },
                if let Some(loc) = &self.loc {
-                   format!("\n\n{}: {}\n{}",
-                       loc.source.st,
-                       loc
+                   format!("\n\n{:?}: {:?}\n{}",
+                       loc.source,
+                       loc,
                        loc.render_span_code(2)
                    )
                } else {
@@ -88,12 +89,12 @@ impl Display for ParseError {
 }
 
 pub(crate) trait OnParseErr{
-    fn e_when<T: Into<String>>(self, reason: String) -> Self;
+    fn e_when<S: Into<String>>(self, reason: S) -> Self;
     fn e_at(self, loc: Span) -> Self;
 }
 
 impl<T> OnParseErr for Result<T, ParseError> {
-    fn e_when<T: Into<String>>(self, reason: T) -> Self {
+    fn e_when<S: Into<String>>(self, reason: S) -> Self {
         self.map_err(|err| err.when(reason))
     }
 

@@ -1,10 +1,12 @@
 pub(crate) mod span;
 
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
 use std::io::{BufRead, Read};
+use std::path::Path;
 use std::rc::Rc;
-use std::string::ParseError;
+use crate::error::ParseError;
+use crate::lib::indexer::{Indexable, Indexer};
 use crate::source::span::Span;
 
 #[derive(PartialEq)]
@@ -13,16 +15,34 @@ pub(crate) struct Source {
     source: String
 }
 
+pub(crate) type SourceIter = Indexer<Rc<Source>>;
+impl Indexable for Rc<Source> {
+    type Item = char;
+    const ITEM_NAME: &'static str = "char";
+
+    fn get(&self, i: usize) -> Self::Item {
+        self.source.as_bytes()[i] as char
+    }
+
+    fn loc_at(&self, i: usize) -> Span {
+        CodePoint(self.clone(), i).span()
+    }
+
+    fn len(&self) -> usize {
+        self.source.len()
+    }
+}
+
 impl Debug for Source {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Source({:?})", self.st)
+        write!(f, "{:?}", self.st)
     }
 }
 
 impl Source {
-    pub(crate) fn from_file(path: String) -> Result<Self, ParseError> {
+    pub(crate) fn from_file<P: AsRef<Path> + Display>(path: P) -> Result<Self, ParseError> {
         Ok(Self {
-            st: SourceType::File(path.clone()),
+            st: SourceType::File(path.to_string()),
             source: {
                 let mut f = File::open(path)?;
                 let mut buffer = String::new();
@@ -55,8 +75,8 @@ impl Debug for SourceType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct CodePoint(Rc<Source>, usize);
+#[derive(Clone, PartialEq)]
+pub(crate) struct CodePoint(pub(crate) Rc<Source>, pub(crate) usize);
 
 impl CodePoint {
     #[allow(non_camel_case_types)]
@@ -71,5 +91,12 @@ impl CodePoint {
         let first_part = &self.0.source[0..self.1];
         let mut lines_split = first_part.split("\n").collect::<Vec<&str>>();
         (lines_split.len(), lines_split.pop().unwrap().len())
+    }
+}
+
+impl Debug for CodePoint {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let (l, i) = self.pos();
+        write!(f, "{}:{}", l, i)
     }
 }

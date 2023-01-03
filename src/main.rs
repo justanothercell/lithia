@@ -1,4 +1,10 @@
+#![feature(pattern)]
+#![feature(try_blocks)]
+#![feature(adt_const_params)]
 #![feature(inherent_associated_types)]
+
+use std::process::exit;
+use crate::compiler::{compile, Arguments};
 
 pub(crate) mod ast;
 pub(crate) mod llvm;
@@ -9,5 +15,14 @@ pub(crate) mod compiler;
 pub(crate) mod lib;
 
 fn main() {
-    println!("Hello, world!");
+   let args = Arguments {
+
+   };
+   match compile(args) {
+      Ok(_) => (),
+      Err(e) => {
+         println!("{e}");
+         exit(1)
+      }
+   }
 }
