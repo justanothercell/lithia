@@ -1,7 +1,7 @@
 use crate::ast::{Item};
 use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While};
-use crate::ast::patterns::procedural::Mapping;
+use crate::ast::patterns::dynamic::Mapping;
 use crate::ast::patterns::simple::{ExpectParticle, ExpectParticleExact, GetIdent};
 
 pub(crate) struct Patterns{

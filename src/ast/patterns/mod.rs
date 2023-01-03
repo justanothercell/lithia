@@ -5,7 +5,7 @@ use crate::tokens::TokIter;
 
 pub(crate) mod simple;
 pub(crate) mod conditional;
-pub(crate) mod procedural;
+pub(crate) mod dynamic;
 
 pub(crate) struct Pattern<T: Consumer, Out> {
     name: Option<String>,
