@@ -1,6 +1,7 @@
 pub(crate) mod parser;
 pub(crate) mod patterns;
 pub(crate) mod code_printer;
+pub(crate) mod create_patterns;
 
 use std::collections::HashMap;
 use std::fmt::Debug;

@@ -1,3 +1,1 @@
-fn main(){
-    foo::<i32>("bar!")
-}
+a :: bb :: ccc ::

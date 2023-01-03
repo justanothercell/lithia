@@ -13,7 +13,7 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
     while iter.elems_left() > 0 {
         match iter.this()? {
             '"' => {
-                let (string, span) = collect_until(&mut iter, true, true,
+                let (string, span) = collect_until(&mut iter, true, true, false,
                                                    |c| c != '"').e_when("tokenizing string literal".to_string())?;
                 tokens.push(TokenType::Literal(Literal::String(string)).at(span));
             }
@@ -22,12 +22,12 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
                 let r: Result<(), ParseError> = try {
                     match iter.this()? {
                         '/' => {
-                            let _comment = collect_until(&mut iter, true, true,
+                            let _comment = collect_until(&mut iter, true, true, false,
                                                          |c| c != '\n').e_when("tokenizing single line comment".to_string())?;
                         },
                         '*' => {
                             loop {
-                                let _comment = collect_until(&mut iter, true, true,
+                                let _comment = collect_until(&mut iter, true, true, false,
                                                              |c| c != '*').e_when("tokenizing single line comment".to_string())?;
                                 iter.next();
                                 if iter.this()? == '/' {
@@ -46,7 +46,7 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
                 r.e_when(String::from("tokenizing comment"))?;
             }
             '\'' => {
-                let (char_src, span) = collect_until(&mut iter, true, true,
+                let (char_src, span) = collect_until(&mut iter, true, true, false,
                                                      |c| c != '\'').e_when("tokenizing char literal".to_string())?;
                 if char_src.len() != 1 {
                     return Err(ParseET::TokenizationError(format!("Expected char, found: '{}'", char_src)).at(span))
@@ -58,7 +58,7 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
                 // pass
             }
             c if c.is_ascii_alphabetic() || c == '_' => {
-                let (ident, span) = collect_until(&mut iter, false, false,
+                let (ident, span) = collect_until(&mut iter, false, false, true,
                                                   |c| c.is_ascii_alphanumeric() || c == '_').e_when("tokenizing identifier".to_string())?;
                 tokens.push(match ident {
                     ident if &ident == "true" => TokenType::Literal(Literal::Bool(true)),
@@ -68,14 +68,14 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
             }
             c if c.is_ascii_digit() => {
                 iter.index -= 1;
-                let (num, span) = collect_until(&mut iter, true, true,
+                let (num, span) = collect_until(&mut iter, true, true, true,
                                                 |c| c.is_ascii_alphanumeric() || c == '_').e_when("tokenizing number literal".to_string())?;
                 iter.index -= 1;
                 let (lit, ty) = str_to_num_lit(num).e_at(span.clone())?;
                 tokens.push(TokenType::Literal(Literal::Number(lit, ty)).at(span));
             }
             c => tokens.push(TokenType::Particle(c, if let Ok(t) = iter.peekn(-1) {
-                !(t.is_ascii_alphanumeric() || t == '_' || t == ' ')
+                tokens.last().map(|l| if let TokenType::Particle(_, _) = l.tt { true } else { false }).unwrap_or(false)
             } else {false}).at(iter.here()))
         }
         iter.next();
@@ -83,15 +83,22 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
     Ok(tokens)
 }
 
-fn collect_until(iter: &mut SourceIter, skip_first: bool, consume_break: bool, cond: fn(char) -> bool) -> Result<(String, Span), ParseError>{
+fn collect_until(iter: &mut SourceIter, skip_first: bool, consume_break: bool, allow_eof: bool, cond: fn(char) -> bool) -> Result<(String, Span), ParseError>{
     let mut start = iter.here();
     let mut result = String::new();
     if skip_first {
         iter.next();
     }
-    while cond(iter.this()?) {
-        result.push(iter.this()?);
-        iter.next();
+    if !allow_eof {
+        while cond(iter.this()?) {
+            result.push(iter.this()?);
+            iter.next();
+        }
+    } else {
+        while iter.this().map(|x| cond(x)).unwrap_or(false) {
+            result.push(iter.this()?);
+            iter.next();
+        }
     }
     if consume_break {
         iter.next();

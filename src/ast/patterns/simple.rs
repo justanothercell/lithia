@@ -1,8 +1,16 @@
 use crate::ast::{AstLiteral, Ident};
-use crate::ast::patterns::Consumer;
-use crate::error::{ParseError, ParseET};
+use crate::ast::patterns::{Consumer, Pat};
+use crate::error::{OnParseErr, ParseError, ParseET};
 use crate::tokens::{Token, TokenType, TokIter, Literal, glued};
 
+pub(crate) struct Dummy<Out>(pub(crate) Pat<Out>);
+
+impl<Out> Consumer for Dummy<Out> {
+    type Output = Out;
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
+        self.0.consume(iter)
+    }
+}
 
 pub(crate) struct ExpectIdent(pub(crate) String);
 impl Consumer for ExpectIdent {
@@ -15,10 +23,10 @@ impl Consumer for ExpectIdent {
                 iter.next();
                 Ok(())
             } else {
-                Err(ParseET::ParsingError(format!("expected {}, found {}", self.0, s)).at(loc))
+                Err(ParseET::ParsingError(format!("expected '{}', found {}", self.0, s)).at(loc))
             }
         } else {
-            Err(ParseET::ParsingError(format!("expected {}, found {:?}", self.0, tt)).at(loc))
+            Err(ParseET::ParsingError(format!("expected '{}', found {:?}", self.0, tt)).at(loc))
         }
     }
 }
@@ -32,7 +40,7 @@ impl Consumer for GetIdent {
             iter.next();
             Ok(Ident(s, loc))
         } else {
-            Err(ParseET::ParsingError(format!("expected {}, found {:?}", stringify!( Ident ), tt)).at(loc))
+            Err(ParseET::ParsingError(format!("expected Ident, found {:?}", tt)).at(loc))
         }
     }
 }
@@ -48,10 +56,10 @@ impl Consumer for ExpectParticle {
                 iter.next();
                 Ok(())
             } else {
-                Err(ParseET::ParsingError(format!("expected {}, found {}", self.0, c)).at(loc))
+                Err(ParseET::ParsingError(format!("expected '{}', found '{}'", self.0, c)).at(loc))
             }
         } else {
-            Err(ParseET::ParsingError(format!("expected {}, found {:?}", self.0, tt)).at(loc))
+            Err(ParseET::ParsingError(format!("expected '{}', found {:?}", self.0, tt)).at(loc))
         }
     }
 }
@@ -66,11 +74,11 @@ impl Consumer for ExpectParticleExact {
                 iter.next();
                 Ok(())
             } else {
-                Err(ParseET::ParsingError(format!("expected ({}, {}), found ({}, {})", self.0, self.1, c, g)).at(loc))
+                Err(ParseET::ParsingError(format!("expected ('{}', {}), found ('{}', {})", self.0, self.1, c, g)).at(loc))
             }
         } else {
-            Err(ParseET::ParsingError(format!("expected ({}, {}), found ({:?})", self.0, self.1, tt)).at(loc))
-        }
+            Err(ParseET::ParsingError(format!("expected ('{}', {}), found ({:?})", self.0, self.1, tt)).at(loc))
+        }.e_when("parsing ident")
     }
 }
 pub(crate) struct GetParticle;
@@ -83,7 +91,7 @@ impl Consumer for GetParticle {
             iter.next();
             Ok((p, g))
         } else {
-            Err(ParseET::ParsingError(format!("expected {}, found {:?}", stringify!( Particle ), tt)).at(loc))
+            Err(ParseET::ParsingError(format!("expected Particle, found {:?}", tt)).at(loc))
         }
     }
 }
@@ -116,7 +124,7 @@ impl Consumer for GetLiteral {
             iter.next();
             Ok(AstLiteral(lit, loc))
         } else {
-            Err(ParseET::ParsingError(format!("expected {}, found {:?}", stringify!( Literal ), tt)).at(loc))
+            Err(ParseET::ParsingError(format!("expected Literal, found {:?}", tt)).at(loc))
         }
     }
 }

@@ -1,11 +1,11 @@
 use std::rc::Rc;
-use crate::error::ParseError;
+use crate::error::{OnParseErr, ParseError};
 use crate::source::span::Span;
 use crate::tokens::TokIter;
 
 pub(crate) mod simple;
 pub(crate) mod conditional;
-pub(crate) mod create_patterns;
+pub(crate) mod procedual;
 
 pub(crate) struct Pattern<T: Consumer, Out> {
     name: Option<String>,
@@ -13,34 +13,23 @@ pub(crate) struct Pattern<T: Consumer, Out> {
     mapper: fn(T::Output, Span) -> Out
 }
 
-#[derive(Clone)]
-pub(crate) struct Pat<Out>(Rc<Box<dyn Consumer<Output=Out>>>);
-impl<Out> Consumer for Pat<Out> {
-    type Output = Out;
-
-    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
-        self.0.consume(iter)
-    }
-}
+pub(crate) type Pat<Out> = Rc<Box<dyn Consumer<Output=Out>>>;
 
 impl<T: Consumer + 'static, Out: 'static> Pattern<T, Out> {
     pub(crate) fn inline(consumer: T, mapper: fn(T::Output, Span) -> Out) -> Pat<Out>{
-        let s = Box::new(Self {
+        Rc::new(Box::new(Self {
             name: None,
             consumer,
             mapper
-        }) as Box<dyn Consumer<Output=Out>>;
-        let b = s;
-        let rc = Rc::new(b);
-        Pat(rc)
+        }))
     }
 
     pub(crate) fn named(name: &str, consumer: T, mapper: fn(T::Output, Span) -> Out) -> Pat<Out>{
-        Pat(Rc::new(Box::new(Self {
+        Rc::new(Box::new(Self {
             name: Some(name.to_string()),
             consumer,
             mapper
-        })))
+        }))
     }
 }
 
@@ -49,15 +38,21 @@ impl<T: Consumer, Out> Consumer for Pattern<T, Out> {
 
     fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
         let mut start = iter.here();
-        let mut out = self.consumer.consume(iter)?;
+        let mut out = self.consumer.consume(iter);
+        if out.is_err() && self.name.is_some() {
+            return Err(unsafe {out.unwrap_err_unchecked()}.when(format!("parsing {}", self.name.clone().unwrap())));
+        }
         start.combine(iter.here());
-        Ok((self.mapper)(out, start))
+        Ok((self.mapper)(out?, start))
     }
 }
 
 pub(crate) trait Consumer {
     type Output;
     fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError>;
+    fn pat(self) -> Pat<Self::Output> where Self: Sized + 'static {
+        Rc::new(Box::new(self))
+    }
 }
 
 macro_rules! tuple_consumer {
