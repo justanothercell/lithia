@@ -5,7 +5,6 @@ pub(crate) mod create_patterns;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
-use crate::ast::code_printer::CodePrinter;
 use crate::source::span::Span;
 use crate::tokens::Literal;
 
@@ -56,6 +55,7 @@ pub(crate) enum Stmt {
     VarAssign(Item, Option<Operator>, Expression)
 }
 impl Stmt {
+    #[allow(non_camel_case_types)]
     type mutable = bool;
 }
 

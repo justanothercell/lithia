@@ -1,7 +1,7 @@
 pub(crate) mod tokenizer;
 
 use std::fmt::{Debug, Display, Formatter};
-use crate::lib::indexer::{Indexable, Indexer};
+use crate::util::indexer::{Indexable, Indexer};
 use crate::source::span::Span;
 
 pub(crate) type TokIter = Indexer<Vec<Token>>;

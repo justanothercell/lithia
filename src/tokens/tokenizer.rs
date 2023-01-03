@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::str::pattern::Pattern;
 use crate::error::{OnParseErr, ParseError, ParseET};
-use crate::lib::indexer::Indexer;
+use crate::util::indexer::Indexer;
 use crate::source::{Source, SourceIter};
 use crate::source::span::Span;
 use crate::tokens::{Literal, NumLit, NumLitTy, Token, TokenType};
@@ -74,9 +74,9 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
                 let (lit, ty) = str_to_num_lit(num).e_at(span.clone())?;
                 tokens.push(TokenType::Literal(Literal::Number(lit, ty)).at(span));
             }
-            c => tokens.push(TokenType::Particle(c, if let Ok(t) = iter.peekn(-1) {
+            c => tokens.push(TokenType::Particle(c,
                 tokens.last().map(|l| if let TokenType::Particle(_, _) = l.tt { true } else { false }).unwrap_or(false)
-            } else {false}).at(iter.here()))
+            ).at(iter.here()))
         }
         iter.next();
     }

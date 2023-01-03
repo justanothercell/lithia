@@ -2,11 +2,11 @@ pub(crate) mod span;
 
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
-use std::io::{BufRead, Read};
+use std::io::{Read};
 use std::path::Path;
 use std::rc::Rc;
 use crate::error::ParseError;
-use crate::lib::indexer::{Indexable, Indexer};
+use crate::util::indexer::{Indexable, Indexer};
 use crate::source::span::Span;
 
 #[derive(PartialEq)]

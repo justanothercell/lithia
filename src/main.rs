@@ -12,7 +12,7 @@ pub(crate) mod source;
 pub(crate) mod tokens;
 pub(crate) mod error;
 pub(crate) mod compiler;
-pub(crate) mod lib;
+pub(crate) mod util;
 
 fn main() {
    let args = Arguments {

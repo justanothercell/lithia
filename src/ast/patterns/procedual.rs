@@ -1,6 +1,5 @@
 use std::rc::Rc;
-use crate::ast::patterns::{Consumer, Pat, Pattern};
-use crate::ast::patterns::simple::Dummy;
+use crate::ast::patterns::{Consumer, Pat};
 use crate::error::{ParseError};
 use crate::source::span::Span;
 use crate::tokens::TokIter;

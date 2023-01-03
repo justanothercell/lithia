@@ -1,4 +1,3 @@
-use crate::ast::Item;
 use crate::ast::patterns::{Consumer, Pat};
 use crate::error::{ParseError, ParseET};
 use crate::tokens::TokIter;

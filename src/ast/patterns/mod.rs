@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::error::{OnParseErr, ParseError};
+use crate::error::{ParseError};
 use crate::source::span::Span;
 use crate::tokens::TokIter;
 
@@ -60,6 +60,7 @@ macro_rules! tuple_consumer {
         impl<$($t: Consumer,)*> Consumer for ($($t,)*) {
             type Output = ($($t::Output,)*);
             #[inline]
+            #[allow(unused_variables)]
             fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
                 Ok(($(self.$n.consume(iter)?,)*))
             }

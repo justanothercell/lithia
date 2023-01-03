@@ -1,6 +1,5 @@
 use crate::ast::{Ident, Module};
 use crate::ast::create_patterns::build_patterns;
-use crate::ast::patterns::Consumer;
 use crate::error::ParseError;
 use crate::source::span::Span;
 use crate::tokens::{Token, TokIter};

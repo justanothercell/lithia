@@ -1,6 +1,5 @@
 use std::rc::Rc;
 use crate::error::{ParseError, ParseET};
-use crate::source::{Source};
 use crate::source::span::Span;
 
 pub(crate) trait Indexable {
@@ -26,7 +25,7 @@ impl<T: Indexable> Indexer<T> {
     }
 
     pub(crate) fn get(&self, index: usize) -> Result<T::Item, ParseError> {
-        if index >= self.list.len() {
+        if index >= self.len() {
             Err(ParseET::EOF.at(self.here()).when(format!("trying to get {}", T::ITEM_NAME)))
         }
         else {
