@@ -97,6 +97,6 @@ impl CodePoint {
 impl Debug for CodePoint {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let (l, i) = self.pos();
-        write!(f, "{}:{}", l, i)
+        write!(f, "{}:{}", l, i+1)
     }
 }

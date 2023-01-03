@@ -49,7 +49,9 @@ impl<T: Indexable> Indexer<T> {
     pub(crate) fn here(&self) -> Span {
         if self.index >= self.list.len() {
             self.list.loc_at(self.index)
-        } else { self.list.loc_at(self.index) }
+        } else {
+            self.list.loc_at(self.index)
+        }
     }
 
     pub(crate) fn next(&mut self){

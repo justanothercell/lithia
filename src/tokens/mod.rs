@@ -10,15 +10,15 @@ impl Indexable for Vec<Token> {
     const ITEM_NAME: &'static str = "token";
 
     fn get(&self, i: usize) -> Self::Item {
-        Vec::<Token>::get(self, i)
+        unsafe {self.as_slice().get_unchecked(i).clone()}
     }
 
     fn loc_at(&self, i: usize) -> Span {
-        Vec::<Token>::get(self, i).loc
+        unsafe {self.as_slice().get_unchecked(i).loc.clone()}
     }
 
     fn len(&self) -> usize {
-        self.len()
+        Vec::<Token>::len(self)
     }
 }
 
