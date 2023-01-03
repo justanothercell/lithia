@@ -1,3 +1,5 @@
+pub(crate) mod parser;
+
 use std::collections::HashMap;
 use crate::source::span::Span;
 use crate::tokens::Literal;

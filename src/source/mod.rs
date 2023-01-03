@@ -63,7 +63,7 @@ impl Source {
 #[derive(Clone, PartialEq)]
 pub(crate) enum SourceType {
     File(String),
-    String,
+    String
 }
 
 impl Debug for SourceType {

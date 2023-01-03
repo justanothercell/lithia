@@ -17,6 +17,18 @@ impl Span {
             end: p.1
         }
     }
+    #[deprecated(note=
+    "This is only for quick prototyping and should not
+    be used in production code as it may cause severe errors and is highly
+    limited in usefulness.
+    If you do not have a span available use the nearest available span instead.")]
+    pub(crate) fn dummy() -> Self {
+        Self {
+            source: Rc::new(Source::from_string("".to_string())),
+            start: 0,
+            end: 0
+        }
+    }
 
     pub(crate) fn from_points(a: CodePoint, b: CodePoint) -> Self{
         assert!(Rc::ptr_eq(&a.0, &b.0), "CodePoints should be of same Source");
