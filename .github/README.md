@@ -1,6 +1,10 @@
 # LITHIA
 A compiled rust-inspired language using LLVM written in rust
 
+# Currently working on
+- compiling main function with puts("hello, worlds"), only implementing the
+necessary components
+
 ## How to use
 - Install LLVM 15 (other versions are probably file aswell,
   you will just need to adjust [cargo.toml](cargo.toml) to use the matching
