@@ -3,14 +3,26 @@ use crate::ast::patterns::{Consumer, Pat};
 use crate::error::{OnParseErr, ParseError, ParseET};
 use crate::tokens::{Token, TokenType, TokIter, Literal, glued};
 
-pub(crate) struct Dummy<Out>(pub(crate) Pat<Out>);
+pub(crate) struct Wrap<Out>(pub(crate) Pat<Out>);
 
-impl<Out> Consumer for Dummy<Out> {
+impl<Out> Consumer for Wrap<Out> {
     type Output = Out;
     fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
         self.0.consume(iter)
     }
 }
+
+pub(crate) struct GetNext;
+
+impl Consumer for GetNext{
+    type Output = Token;
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
+        let t = iter.this();
+        iter.next();
+        t
+    }
+}
+
 
 pub(crate) struct ExpectIdent(pub(crate) String);
 impl Consumer for ExpectIdent {

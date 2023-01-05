@@ -7,7 +7,7 @@ use crate::tokens::{Token, TokIter};
 pub(crate) fn parse(tokens: Vec<Token>) -> Result<Module, ParseError>{
     let patterns = build_patterns();
     let mut tokens = TokIter::new(tokens);
-    let r = patterns.item.consume(&mut tokens)?;
+    let r = patterns.module_content.consume(&mut tokens)?;
     println!("{r:?}");
     Ok(Module{
         name: Ident("".to_string(), Span::dummy()),

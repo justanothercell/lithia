@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+use std::ops::Deref;
 use std::rc::Rc;
 use crate::error::{ParseError};
 use crate::source::span::Span;
@@ -44,6 +46,20 @@ impl<T: Consumer, Out> Consumer for Pattern<T, Out> {
         }
         start.combine(iter.here());
         Ok((self.mapper)(out?, start))
+    }
+}
+
+impl<Out> Consumer for Rc<Box<dyn Consumer<Output=Out>>> {
+    type Output = Out;
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
+        self.as_ref().consume(iter)
+    }
+}
+
+impl<Out, T: Consumer<Output=Out>> Consumer for Rc<T> {
+    type Output = Out;
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
+        self.as_ref().consume(iter)
     }
 }
 

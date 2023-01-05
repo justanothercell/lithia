@@ -1,3 +1,4 @@
+use std::cell::{Cell, RefMut, UnsafeCell};
 use std::rc::Rc;
 use crate::ast::patterns::{Consumer, Pat};
 use crate::error::{ParseError};
@@ -11,16 +12,6 @@ pub(crate) trait Mapping{
     type Output;
     fn map_res<Mapped>(self, mapper: fn(Self::Output, Span) -> Result<Mapped, ParseError>) -> MapperRes<Self::Output, Mapped>;
     fn map<Mapped>(self, mapper: fn(Self::Output, Span) -> Mapped) -> Mapper<Self::Output, Mapped>;
-}
-
-impl<Out> Mapping for Pat<Out>  {
-    type Output = Out;
-    fn map_res<Mapped>(self, mapper: fn(Self::Output, Span) -> Result<Mapped, ParseError>) -> MapperRes<Self::Output, Mapped> {
-        MapperRes(self, mapper)
-    }
-    fn map<Mapped>(self, mapper: fn(Self::Output, Span) -> Mapped) -> Mapper<Self::Output, Mapped> {
-        Mapper(self, mapper)
-    }
 }
 
 impl<T: Consumer + 'static> Mapping for T  {
@@ -51,5 +42,29 @@ impl<Out, Mapped> Consumer for Mapper<Out, Mapped>{
         let out = self.0.consume(iter)?;
         start.combine(iter.here());
         Ok(self.1(out, start))
+    }
+}
+
+pub(crate) struct Latent<Out>(UnsafeCell<Option<Pat<Out>>>);
+impl<Out> Consumer for Latent<Out>{
+    type Output = Out;
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
+        if let Some(p) = unsafe {&*self.0.get()}{
+            p.consume(iter)
+        } else {
+            panic!("Latent was not finalized!")
+        }
+    }
+}
+
+impl<Out: 'static> Latent<Out> {
+    pub(crate) fn new() -> (Pat<Out>, Rc<Self>){
+        let rc = Rc::new(Self(UnsafeCell::new(None)));
+        let c = Rc::clone(&rc);
+        let pat = c.pat();
+        (pat, rc)
+    }
+    pub(crate) fn finalize(&self, p: Pat<Out>){
+        unsafe {*self.0.get() = Some(p);}
     }
 }

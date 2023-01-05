@@ -3,6 +3,8 @@
 #![feature(adt_const_params)]
 #![feature(inherent_associated_types)]
 
+extern crate core;
+
 use std::process::exit;
 use crate::compiler::{compile, Arguments};
 

@@ -27,7 +27,9 @@ pub(crate) enum Expr {
     Variable(Ident),
     FuncCall(Item, Vec<Expression>),
     BinaryOp(Operator, Box<Expression>, Box<Expression>),
-    UnaryOp(Operator, Box<Expression>)
+    UnaryOp(Operator, Box<Expression>),
+    VarCreate(Item, bool, Option<FullType>, Box<Expression>),
+    VarAssign(Item, Option<Operator>, Box<Expression>)
 }
 
 
@@ -47,17 +49,7 @@ pub(crate) enum Op {
 }
 
 #[derive(Debug)]
-pub(crate) struct Statement(pub(crate) Stmt, pub(crate) Span);
-#[derive(Debug)]
-pub(crate) enum Stmt {
-    Expression(Expression),
-    VarCreate(Item, Self::mutable, Option<FullType>, Expression),
-    VarAssign(Item, Option<Operator>, Expression)
-}
-impl Stmt {
-    #[allow(non_camel_case_types)]
-    type mutable = bool;
-}
+pub(crate) struct Statement(pub(crate) Expression, pub(crate) bool, pub(crate) Span);
 
 #[derive(Debug)]
 pub(crate) struct Module{
@@ -75,7 +67,7 @@ pub(crate) struct Func {
     pub(crate) name: Ident,
     pub(crate) args: Vec<(Ident, FullType)>,
     pub(crate) ret: FullType,
-    pub(crate) body: Block,
+    pub(crate) body: Option<Block>,
     pub(crate) loc: Span
 }
 
