@@ -27,7 +27,7 @@ pub(crate) enum Expr {
     FuncCall(Item, Vec<Expression>),
     BinaryOp(Operator, Box<Expression>, Box<Expression>),
     UnaryOp(Operator, Box<Expression>),
-    VarCreate(Item, bool, Option<FullType>, Box<Expression>),
+    VarCreate(Item, bool, Option<Type>, Box<Expression>),
     VarAssign(Item, Option<Operator>, Box<Expression>)
 }
 
@@ -55,6 +55,7 @@ pub(crate) struct Module{
     pub(crate) name: Ident,
     pub(crate) sub_modules: HashMap<String, Module>,
     pub(crate) functions: HashMap<String, Func>,
+    pub(crate) constants: HashMap<String, Const>,
     pub(crate) loc: Span
 }
 
@@ -64,35 +65,42 @@ pub(crate) struct Block(pub(crate) Vec<Statement>, pub(crate) Span);
 #[derive(Debug, Clone)]
 pub(crate) struct Func {
     pub(crate) name: Ident,
-    pub(crate) args: Vec<(Ident, FullType)>,
-    pub(crate) signature: FullType,
+    pub(crate) args: Vec<(Ident, Type)>,
+    pub(crate) ret: Type,
     pub(crate) body: Option<Block>,
     pub(crate) loc: Span
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct FullType(pub(crate) TypeT, pub(crate) Span);
-#[derive(Debug, Clone)]
-pub(crate) enum TypeT {
-    Single(Type),
-    Tuple(Vec<FullType>),
-    Signature(Vec<FullType>, Box<FullType>)
+pub(crate) struct Const {
+    pub(crate) name: Ident,
+    pub(crate) ty: Type,
+    pub(crate) val: Expression
 }
-impl TypeT {
+
+#[derive(Debug, Clone)]
+pub(crate) struct Type(pub(crate) Ty, pub(crate) Span);
+#[derive(Debug, Clone)]
+pub(crate) enum Ty {
+    Single{
+        generics: Vec<Type>,
+        base_type: Item,
+        loc: Span
+    },
+    Pointer(Box<Type>),
+    Array(Box<Type>),
+    Tuple(Vec<Type>),
+    Signature(Vec<Type>, Box<Type>)
+}
+impl Ty {
     pub(crate) fn empty() -> Self{
-        TypeT::Tuple(vec![])
+        Ty::Tuple(vec![])
     }
     pub(crate) fn is_empty(&self) -> bool {
-        if let TypeT::Tuple(ty) = self {
+        if let Ty::Tuple(ty) = self {
             ty.len() == 0
         } else {
             false
         }
     }
-}
-#[derive(Debug, Clone)]
-pub(crate) struct Type {
-    pub(crate) generics: Vec<FullType>,
-    pub(crate) base_type: Item,
-    pub(crate) loc: Span
 }

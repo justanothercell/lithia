@@ -16,18 +16,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7d76083a-46e7-4914-8e87-b068d29779f6" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/llvm/gen_llvm.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.github/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/.github/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.exe" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.exe" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.li" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.li" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ast/code_printer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/code_printer.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ast/create_patterns.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/create_patterns.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ast/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/compiler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/compiler.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/error.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ast/parser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/parser.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/llvm/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -76,7 +73,7 @@
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "settings.editor.selected.configurable": "preferences.fileTypes",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -139,7 +136,7 @@
       <workItem from="1672484520818" duration="854000" />
       <workItem from="1672741138271" duration="29336000" />
       <workItem from="1672822528299" duration="8483000" />
-      <workItem from="1672914711858" duration="23540000" />
+      <workItem from="1672914711858" duration="26639000" />
     </task>
     <servers />
   </component>

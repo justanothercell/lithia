@@ -1,16 +1,15 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-use crate::ast::{Block, Expr, Expression, FullType, Func, Item, Statement, TypeT};
+use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const};
 use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk};
 use crate::ast::patterns::dynamic::{Latent, Mapping};
-use crate::ast::patterns::simple::{ExpectIdent, ExpectParticle, ExpectParticleExact, GetIdent, GetLiteral, GetNext};
+use crate::ast::patterns::simple::{ExpectIdent, ExpectParticle, ExpectParticleExact, GetIdent, GetLiteral, GetNext, GetParticle};
 use crate::error::{ParseError, ParseET};
 use crate::source::span::Span;
 
 pub(crate) struct Patterns{
-    pub(crate) item: Pat<Item>,
-    pub(crate) module_content: Pat<((HashMap<String, Func>,), Span)>
+    pub(crate) module_content: Pat<((HashMap<String, Func>, HashMap<String, Const>), Span)>
 }
 
 pub(crate) fn build_patterns() -> Patterns {
@@ -23,6 +22,14 @@ pub(crate) fn build_patterns() -> Patterns {
                   ),
               ),
         |(ident, mut vec), loc| {vec.insert(0, ident); Item(vec, loc)});
+
+    let (type_pat, type_finalizer) = Latent::new();
+    type_finalizer.finalize(Pattern::named("type", Match(vec![
+        (Succeed(ExpectParticle('*').pat()).pat(), (ExpectParticle('*'), type_pat.clone()).map(|(_, ty), _| Ty::Pointer(Box::new(ty))).pat()),
+        (Succeed(ExpectParticle('[').pat()).pat(), (ExpectParticle('['), type_pat.clone(), ExpectParticle(']')).map(|(_, ty, _), _| Ty::Array(Box::new(ty))).pat()),
+        (Succeed(item.clone()).pat(), item.clone().map(|item, loc| Ty::Single { generics: vec![], base_type: item, loc }).pat()),
+    ]), |ty, loc| Type(ty, loc)));
+
     let (expression, expression_finalizer) = Latent::new();
     let function_call = Pattern::named("function call", (
         item.clone(),
@@ -60,35 +67,58 @@ pub(crate) fn build_patterns() -> Patterns {
     ), |(_, name, _, _, body), loc| Func {
         name,
         args: vec![],
-        signature: FullType(TypeT::Signature(vec![], Box::new(FullType(TypeT::Tuple(vec![]), loc.clone()))), loc.clone()),
+        ret: Type(Ty::Tuple(vec![]), loc.clone()),
         body,
         loc,
     });
+    let constant = Pattern::named("constant", (
+        ExpectIdent("const".to_string()),
+        GetIdent,
+        ExpectParticle(':'),
+        type_pat.clone(),
+        ExpectParticle('='),
+        expression.clone(),
+        ExpectParticle(';'),
+        ), |(_, name, _, ty, _, val, _), loc| Const { name, ty, val });
     enum ModuleContent{
-        Function(Func)
+        Function(Func),
+        Const(Const)
     }
     let module_content = Pattern::named("module content",
         While(
             GetNext.pat(),
             Match(vec![
-                (Succeed(ExpectIdent("fn".to_string()).pat()).pat(), function.clone().map(|f, _| ModuleContent::Function(f)).pat())
+                (Succeed(ExpectIdent("fn".to_string()).pat()).pat(), function.clone().map(|f, _| ModuleContent::Function(f)).pat()),
+                (Succeed(ExpectIdent("const".to_string()).pat()).pat(), constant.clone().map(|c, _| ModuleContent::Const(c)).pat())
             ]).pat()
         ).map_res(|content, loc| {
             let mut functions = HashMap::new();
+            let mut constants = HashMap::new();
             for c in content.into_iter() {
                 match c {
                     ModuleContent::Function(f) => {
                         let l = f.name.1.clone();
+                        if constants.contains_key(&f.name.0){
+                            return Err(ParseET::AlreadyDefinedError("constant".to_string(), f.name.0, f.name.1).at(l))
+                        }
                         if let Some(f) = functions.insert(f.name.0.clone(), f){
                             return Err(ParseET::AlreadyDefinedError("function".to_string(), f.name.0, f.name.1).at(l))
+                        }
+                    },
+                    ModuleContent::Const(c) => {
+                        let l = c.name.1.clone();
+                        if functions.contains_key(&c.name.0){
+                            return Err(ParseET::AlreadyDefinedError("function".to_string(), c.name.0, c.name.1).at(l))
+                        }
+                        if let Some(c) = constants.insert(c.name.0.clone(), c){
+                            return Err(ParseET::AlreadyDefinedError("constant".to_string(), c.name.0, c.name.1).at(l))
                         }
                     }
                 };
             }
-            Ok((functions,))
+            Ok((functions, constants))
         }), |content, loc| (content, loc));
     Patterns {
-        item,
         module_content
     }
 }

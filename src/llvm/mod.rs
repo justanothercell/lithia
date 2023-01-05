@@ -6,7 +6,7 @@ use std::ffi::c_uint;
 
 use llvm_sys::{prelude, core};
 use llvm_sys::prelude::LLVMModuleRef;
-use crate::ast::FullType;
+use crate::ast::Type;
 use crate::error::{ParseError, ParseET};
 use crate::source::span::Span;
 
@@ -39,7 +39,7 @@ pub(crate) struct LLVMModGenEnv {
 
 #[derive(Clone)]
 pub(crate) struct Variable{
-    ast_type: FullType,
+    ast_type: Type,
     llvm_type: prelude::LLVMTypeRef,
     llvm_value: prelude::LLVMValueRef
 }

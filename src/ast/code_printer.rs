@@ -1,4 +1,4 @@
-use crate::ast::{AstLiteral, Block, Expr, Expression, FullType, Func, Ident, Item, Module, Op, Operator, Statement, Type, TypeT};
+use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, Module, Op, Operator, Statement, Ty};
 use crate::tokens::{Literal, NumLit};
 
 pub(crate) trait CodePrinter{
@@ -8,29 +8,20 @@ pub(crate) trait CodePrinter{
     }
 }
 
-impl CodePrinter for TypeT {
+impl CodePrinter for Ty {
     fn print(&self) -> String {
         match self {
-            TypeT::Single(ty) => ty.print(),
-            TypeT::Tuple(types) => format!("({})", types.iter().map(|t|t.print()).collect::<Vec<_>>().join(", ")),
-            TypeT::Signature(args, ret) => format!("fn({}) -> {}", args.iter().map(|t|t.print()).collect::<Vec<_>>().join(", "), ret.print()),
-        }
-    }
-}
-
-impl CodePrinter for FullType {
-    fn print(&self) -> String {
-        self.0.print()
-    }
-}
-
-impl CodePrinter for Type {
-    fn print(&self) -> String {
-        if self.generics.len() == 0{
-            format!("{}", self.base_type.print())
-        }
-        else {
-            format!("{}<{}>", self.base_type.print(), self.generics.iter().map(|g|g.print()).collect::<Vec<_>>().join(", "))
+            Ty::Pointer(ty) => format!("*{}", ty.0.print()),
+            Ty::Array(ty) => format!("[{}]", ty.0.print()),
+            Ty::Single { generics, base_type, .. } =>
+                if generics.len() == 0{
+                    format!("{}", base_type.print())
+                }
+                else {
+                    format!("{}<{}>", base_type.print(), generics.iter().map(|g|g.0.print()).collect::<Vec<_>>().join(", "))
+                },
+            Ty::Tuple(types) => format!("({})", types.iter().map(|t|t.0.print()).collect::<Vec<_>>().join(", ")),
+            Ty::Signature(args, ret) => format!("fn({}) -> {}", args.iter().map(|t|t.0.print()).collect::<Vec<_>>().join(", "), ret.0.print()),
         }
     }
 }
@@ -77,7 +68,7 @@ impl CodePrinter for Expression {
             format!("let {}{}{} = {};",
                     if *mutable { "mut "} else {""}.to_string(),
                     ident.print(),
-                    ty.as_ref().map(|t|format!(": {}", t.print())).unwrap_or("".to_string()),
+                    ty.as_ref().map(|t|format!(": {}", t.0.print())).unwrap_or("".to_string()),
                     expr.print()
             ),
             Expr::VarAssign(ident, Some(op), expr) => format!("{} {}= {};", ident.print(), op.print(), expr.print()),
@@ -114,15 +105,21 @@ impl CodePrinter for Func {
         format!("fn {}({}){}{}",
                 self.name.print(),
                 self.args.iter().map(|(ident, ty)| format!("{}: {}", ident.print(), ty.0.print())).collect::<Vec<_>>().join(", "),
-                if self.signature.0.is_empty() {
+                if self.ret.0.is_empty() {
                     String::new()
                 } else {
-                    format!(" -> {}", self.signature.print())
+                    format!(" -> {}", self.ret.0.print())
                 },
                 if let Some(body) = &self.body {
                     body.print()
                 } else {String::from(";")}
         )
+    }
+}
+
+impl CodePrinter for Const {
+    fn print(&self) -> String {
+        format!("const {}: {} = {};", self.name.print(), self.ty.0.print(), self.val.print())
     }
 }
 
@@ -144,6 +141,8 @@ impl CodePrinter for Module {
 
 impl Module {
     fn print_content(&self) -> String {
-        format!("{}", self.functions.values().map(|t| t.print()).collect::<Vec<_>>().join("\n"))
+        format!("{}\n{}",
+                self.constants.values().map(|c| c.print()).collect::<Vec<_>>().join("\n"),
+                self.functions.values().map(|t| t.print()).collect::<Vec<_>>().join("\n"))
     }
 }
