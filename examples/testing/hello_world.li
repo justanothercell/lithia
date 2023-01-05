@@ -2,11 +2,7 @@
 //fn puts(*[u8]) -> i32;
 
 fn main(){
-    puts("hello, world");
-}
-
-fn main(){
-    puts("hello, world");
+    puts("hello, worlds!");
 }
 
 

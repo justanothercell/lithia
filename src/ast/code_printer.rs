@@ -1,4 +1,4 @@
-use crate::ast::{AstLiteral, Expr, Expression, FullType, Func, Ident, Item, Module, Op, Operator, Statement, Type, TypeT};
+use crate::ast::{AstLiteral, Block, Expr, Expression, FullType, Func, Ident, Item, Module, Op, Operator, Statement, Type, TypeT};
 use crate::tokens::{Literal, NumLit};
 
 pub(crate) trait CodePrinter{
@@ -81,7 +81,8 @@ impl CodePrinter for Expression {
                     expr.print()
             ),
             Expr::VarAssign(ident, Some(op), expr) => format!("{} {}= {};", ident.print(), op.print(), expr.print()),
-            Expr::VarAssign(ident, None, expr) => format!("{} = {};", ident.print(), expr.print())
+            Expr::VarAssign(ident, None, expr) => format!("{} = {};", ident.print(), expr.print()),
+            Expr::Block(block) => block.print()
         }
     }
 }
@@ -113,19 +114,25 @@ impl CodePrinter for Func {
         format!("fn {}({}){}{}",
                 self.name.print(),
                 self.args.iter().map(|(ident, ty)| format!("{}: {}", ident.print(), ty.0.print())).collect::<Vec<_>>().join(", "),
-                if self.ret.0.is_empty() {
+                if self.signature.0.is_empty() {
                     String::new()
                 } else {
-                    format!(" -> {}", self.ret.print())
+                    format!(" -> {}", self.signature.print())
                 },
                 if let Some(body) = &self.body {
-                    if body.0.is_empty() {
-                        String::from(" {}")
-                    } else {
-                        format!(" {{\n{}\n}}", body.0.iter().map(|t| t.print_indented()).collect::<Vec<_>>().join("\n"))
-                    }
+                    body.print()
                 } else {String::from(";")}
         )
+    }
+}
+
+impl CodePrinter for Block {
+    fn print(&self) -> String {
+        if self.0.is_empty() {
+            String::from(" {}")
+        } else {
+            format!(" {{\n{}\n}}", self.0.iter().map(|t| t.print_indented()).collect::<Vec<_>>().join("\n"))
+        }
     }
 }
 

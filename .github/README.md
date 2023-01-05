@@ -9,6 +9,8 @@ for your platform are missing tools such as `llvm-config`.exe.<br>
 2. Set the `LLVM_SYS_150_PREFIX` environment variable to the root directory of LLVM, or add LLVM to your `PATH`
 3.Configure input files in [main](../src/main.rs) and run the compiler
 
+## Resources
+- https://alive2.llvm.org/ce/ llvm ir analyzer
 
 ## Topics
 #### [Structure & Design](./structure_design.md)

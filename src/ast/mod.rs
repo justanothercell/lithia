@@ -8,21 +8,22 @@ use std::fmt::Debug;
 use crate::source::span::Span;
 use crate::tokens::Literal;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Ident(pub(crate) String, pub(crate) Span);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Item(pub(crate) Vec<Ident>, pub(crate) Span);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct AstLiteral(pub(crate) Literal, pub(crate) Span);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Expression(pub(crate) Expr, pub(crate) Span);
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Expr {
     Literal(AstLiteral),
     Variable(Ident),
+    Block(Block),
     FuncCall(Item, Vec<Expression>),
     BinaryOp(Operator, Box<Expression>, Box<Expression>),
     UnaryOp(Operator, Box<Expression>),
@@ -31,9 +32,9 @@ pub(crate) enum Expr {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Operator(pub(crate) Op, pub(crate) Span);
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Op {
     Add,
     Sub,
@@ -46,10 +47,10 @@ pub(crate) enum Op {
     RShift,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Statement(pub(crate) Expression, pub(crate) bool, pub(crate) Span);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Module{
     pub(crate) name: Ident,
     pub(crate) sub_modules: HashMap<String, Module>,
@@ -57,21 +58,21 @@ pub(crate) struct Module{
     pub(crate) loc: Span
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Block(pub(crate) Vec<Statement>, pub(crate) Span);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Func {
     pub(crate) name: Ident,
     pub(crate) args: Vec<(Ident, FullType)>,
-    pub(crate) ret: FullType,
+    pub(crate) signature: FullType,
     pub(crate) body: Option<Block>,
     pub(crate) loc: Span
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct FullType(pub(crate) TypeT, pub(crate) Span);
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum TypeT {
     Single(Type),
     Tuple(Vec<FullType>),
@@ -89,7 +90,7 @@ impl TypeT {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Type {
     pub(crate) generics: Vec<FullType>,
     pub(crate) base_type: Item,

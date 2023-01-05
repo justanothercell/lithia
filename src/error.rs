@@ -34,7 +34,8 @@ pub(crate) enum ParseET {
     TokenizationError(String),
     ParseLiteralError(Literal, String),
     ParsingError(String),
-    AlreadyDefinedError(String, String, Span)
+    AlreadyDefinedError(String, String, Span),
+    VariableNotFound(String)
 }
 
 impl ParseET {
@@ -56,7 +57,7 @@ impl ParseET {
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}{}",
+        write!(f, "{}{}{}{}",
                match &self.et {
                    ParseET::EOF => format!("Input error:\n    reached end of file"),
                    ParseET::EmptyInput => format!("Input error:\n    input was empty"),
@@ -71,13 +72,19 @@ impl Display for ParseError {
                    }, e),
                    ParseET::ParsingError(e) => format!("Parsing error:\n    {}", e),
                    ParseET::AlreadyDefinedError(what, name, loc) =>
-                       format!("Multiple definitions error:\n    {} {} was already defined at\n{:?}: {:?}\n{}",
-                       what, name, loc.source, loc, loc.render_span_code(2))
+                       format!("Multiple definitions error:\n    {} {} was already defined",
+                       what, name),
+                   ParseET::VariableNotFound(ident) => format!("Name error:\n    could not find variable {ident}")
                },
                if self.context.len() > 0 {
                    format!("\n    while {}", self.context.join("\n    while "))
                } else {
                    String::new()
+               },
+               match &self.et {
+                   ParseET::AlreadyDefinedError(what, name, loc) =>
+                       format!("\n\n{:?}: {:?}\n{}", loc.source, loc, loc.render_span_code(2)),
+                    _ => String::new()
                },
                if let Some(loc) = &self.loc {
                    format!("\n\n{:?}: {:?}\n{}",

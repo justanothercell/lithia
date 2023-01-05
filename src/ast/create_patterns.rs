@@ -60,7 +60,7 @@ pub(crate) fn build_patterns() -> Patterns {
     ), |(_, name, _, _, body), loc| Func {
         name,
         args: vec![],
-        ret: FullType(TypeT::Tuple(vec![]), loc.clone()),
+        signature: FullType(TypeT::Signature(vec![], Box::new(FullType(TypeT::Tuple(vec![]), loc.clone()))), loc.clone()),
         body,
         loc,
     });
