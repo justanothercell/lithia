@@ -1,13 +1,16 @@
-use crate::ast::{Block, Expr, Expression, FullType, Func, Ident, Item, Statement, TypeT};
+use std::collections::HashMap;
+use std::hash::Hash;
+use crate::ast::{Block, Expr, Expression, FullType, Func, Item, Statement, TypeT};
 use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk};
 use crate::ast::patterns::dynamic::{Latent, Mapping};
 use crate::ast::patterns::simple::{ExpectIdent, ExpectParticle, ExpectParticleExact, GetIdent, GetLiteral, GetNext};
+use crate::error::{ParseError, ParseET};
 use crate::source::span::Span;
 
 pub(crate) struct Patterns{
     pub(crate) item: Pat<Item>,
-    pub(crate) module_content: Pat<Vec<Func>>
+    pub(crate) module_content: Pat<((HashMap<String, Func>,), Span)>
 }
 
 pub(crate) fn build_patterns() -> Patterns {
@@ -70,15 +73,20 @@ pub(crate) fn build_patterns() -> Patterns {
             Match(vec![
                 (Succeed(ExpectIdent("fn".to_string()).pat()).pat(), function.clone().map(|f, _| ModuleContent::Function(f)).pat())
             ]).pat()
-        ), |content, loc| {
-            let mut functions = vec![];
+        ).map_res(|content, loc| {
+            let mut functions = HashMap::new();
             for c in content.into_iter() {
                 match c {
-                    ModuleContent::Function(f) => functions.push(f)
-                }
+                    ModuleContent::Function(f) => {
+                        let l = f.name.1.clone();
+                        if let Some(f) = functions.insert(f.name.0.clone(), f){
+                            return Err(ParseET::AlreadyDefinedError("function".to_string(), f.name.0, f.name.1).at(l))
+                        }
+                    }
+                };
             }
-            functions
-        });
+            Ok((functions,))
+        }), |content, loc| (content, loc));
     Patterns {
         item,
         module_content

@@ -33,7 +33,8 @@ pub(crate) enum ParseET {
     IOError(std::io::Error),
     TokenizationError(String),
     ParseLiteralError(Literal, String),
-    ParsingError(String)
+    ParsingError(String),
+    AlreadyDefinedError(String, String, Span)
 }
 
 impl ParseET {
@@ -68,7 +69,10 @@ impl Display for ParseError {
                        Literal::Number(NumLit::Float(_), _) => "Float",
                        Literal::Bool(_) => "Float",
                    }, e),
-                   ParseET::ParsingError(e) => format!("Parsing error:\n    {}", e)
+                   ParseET::ParsingError(e) => format!("Parsing error:\n    {}", e),
+                   ParseET::AlreadyDefinedError(what, name, loc) =>
+                       format!("Multiple definitions error:\n    {} {} was already defined at\n{:?}: {:?}\n{}",
+                       what, name, loc.source, loc, loc.render_span_code(2))
                },
                if self.context.len() > 0 {
                    format!("\n    while {}", self.context.join("\n    while "))

@@ -8,8 +8,6 @@ use std::fmt::Debug;
 use crate::source::span::Span;
 use crate::tokens::Literal;
 
-pub(crate) type NamedMap<T> = HashMap<String, T>;
-
 #[derive(Debug)]
 pub(crate) struct Ident(pub(crate) String, pub(crate) Span);
 
@@ -54,8 +52,8 @@ pub(crate) struct Statement(pub(crate) Expression, pub(crate) bool, pub(crate) S
 #[derive(Debug)]
 pub(crate) struct Module{
     pub(crate) name: Ident,
-    pub(crate) sub_modules: NamedMap<Module>,
-    pub(crate) functions: NamedMap<Func>,
+    pub(crate) sub_modules: HashMap<String, Module>,
+    pub(crate) functions: HashMap<String, Func>,
     pub(crate) loc: Span
 }
 

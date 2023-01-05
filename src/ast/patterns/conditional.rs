@@ -22,7 +22,7 @@ impl<Item> Consumer for Match<Item> {
     type Output = Item;
 
     fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
-        let mut start = iter.here();
+        let start = iter.here();
         for (pred, item) in &self.0 {
             let mut pred_it = iter.clone();
             if pred.consume(&mut pred_it).is_ok() {

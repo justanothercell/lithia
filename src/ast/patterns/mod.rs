@@ -40,7 +40,7 @@ impl<T: Consumer, Out> Consumer for Pattern<T, Out> {
 
     fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
         let mut start = iter.here();
-        let mut out = self.consumer.consume(iter);
+        let out = self.consumer.consume(iter);
         if out.is_err() && self.name.is_some() {
             return Err(unsafe {out.unwrap_err_unchecked()}.when(format!("parsing {}", self.name.clone().unwrap())));
         }

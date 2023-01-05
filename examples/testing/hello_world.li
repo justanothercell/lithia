@@ -4,3 +4,9 @@
 fn main(){
     puts("hello, world");
 }
+
+fn main(){
+    puts("hello, world");
+}
+
+

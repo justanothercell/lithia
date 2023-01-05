@@ -2,6 +2,7 @@
 #![feature(try_blocks)]
 #![feature(adt_const_params)]
 #![feature(inherent_associated_types)]
+#![feature(box_patterns)]
 
 extern crate core;
 

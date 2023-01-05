@@ -4,15 +4,14 @@ use crate::error::ParseError;
 use crate::source::span::Span;
 use crate::tokens::{Token, TokIter};
 
-pub(crate) fn parse(tokens: Vec<Token>) -> Result<Module, ParseError>{
+pub(crate) fn parse(tokens: Vec<Token>, mod_name: (String, Option<Span>)) -> Result<Module, ParseError>{
     let patterns = build_patterns();
     let mut tokens = TokIter::new(tokens);
-    let r = patterns.module_content.consume(&mut tokens)?;
-    println!("{r:?}");
+    let ((functions,), loc) = patterns.module_content.consume(&mut tokens)?;
     Ok(Module{
-        name: Ident("".to_string(), Span::dummy()),
+        name: Ident(mod_name.0, mod_name.1.unwrap_or(loc.clone())),
         sub_modules: Default::default(),
-        functions: Default::default(),
-        loc: Span::dummy()
+        functions,
+        loc
     })
 }
