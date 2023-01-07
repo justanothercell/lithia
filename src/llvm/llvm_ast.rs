@@ -7,7 +7,7 @@ use crate::ast::code_printer::CodePrinter;
 use crate::error::{ParseError, ParseET};
 use crate::llvm::{LLVMModGenEnv, Variable};
 use crate::source::span::Span;
-use crate::tokens::Literal;
+use crate::tokens::{Literal, NumLit, NumLitTy};
 
 impl Module {
     pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<(), ParseError> {
@@ -67,12 +67,14 @@ impl Module {
                 b
             };
             let mut ret = func.body.as_ref().unwrap().build(env, None, true)?;
+            println!("{}", ret.ast_type.print());
             validate_type_eq(&func.ret, &ret.ast_type)?;
             unsafe {
                 core::LLVMBuildRetVoid(env.builder);
                 core::LLVMDisposeBuilder(env.builder);
             }
             env.builder = entry_builder;
+            println!("3")
         }
         Ok(())
     }
@@ -142,7 +144,7 @@ impl Block {
         unsafe {Ok(ret.unwrap_or_else(||Variable {
             ast_type: Type(Ty::Tuple(vec![]), self.1.clone()),
             llvm_type: core::LLVMVoidType(),
-            llvm_value: core::LLVMConstNull(core::LLVMVoidType()),
+            llvm_value: *[].as_mut_ptr(),
         }))}
     }
 }
@@ -199,7 +201,9 @@ impl AstLiteral {
                         Type(Ty::Single(vec![], Item::new(&vec!["u8"], self.1.clone())), self.1.clone()),
                         s.len() + 1), self.1.clone()), env)?.llvm_value,
                 Literal::Char(c) => core::LLVMConstInt(core::LLVMInt8Type(), *c as u8 as c_ulonglong, false as LLVMBool),
-                //Literal::Number(_, _) => {}
+                Literal::Number(NumLit::Integer(num), Some(n)) => {
+                    core::LLVMConstInt( self.get_type()?.llvm_type(env)?, *num as u8 as c_ulonglong, false as LLVMBool)
+                }
                 Literal::Bool(b) => core::LLVMConstInt(core::LLVMInt1Type(), *b as c_ulonglong, false as LLVMBool),
                 Literal::Array(arr, elem_ty , len) =>
                     core::LLVMConstArray(elem_ty.llvm_type(env)?,

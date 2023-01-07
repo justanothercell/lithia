@@ -36,7 +36,7 @@ pub(crate) struct LLVMModGenEnv {
     builder: prelude::LLVMBuilderRef
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct Variable{
     ast_type: Type,
     llvm_type: prelude::LLVMTypeRef,

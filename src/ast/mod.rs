@@ -114,7 +114,9 @@ impl AstLiteral {
         Ok(match &self.0 {
             Literal::String(s) => Type(Ty::Array(Box::new(Type(Ty::Single(vec![], Item::new(&vec!["u8"], self.1.clone())), self.1.clone())), s.len() + 1), self.1.clone()),
             Literal::Char(_) => Type(Ty::Single(vec![], Item::new(&vec!["u8"], self.1.clone())), self.1.clone()),
-            Literal::Number(_, ty) => unimplemented!(),
+            Literal::Number(_, ty) => if let Some(ty) = ty {
+                Type(Ty::Single(vec![], Item::new(&vec![&format!("{ty}")], self.1.clone())), self.1.clone())
+            } else { unimplemented!()},
             Literal::Bool(_) => Type(Ty::Single(vec![], Item::new(&vec!["bool"], self.1.clone())), self.1.clone()),
             Literal::Array(_, elem_ty, len) =>  Type(Ty::Array(Box::new(elem_ty.clone()), *len), self.1.clone())
         })

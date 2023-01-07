@@ -26,7 +26,7 @@ pub(crate) fn build_patterns() -> Patterns {
 
     let (type_pat, type_finalizer) = Latent::new();
     type_finalizer.finalize(Pattern::named("type", Match(vec![
-        (Succeed(ExpectParticle('*').pat()).pat(), (ExpectParticle('*'), type_pat.clone()).map(|(_, ty), _| Ty::Pointer(Box::new(ty))).pat()),
+        (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'), type_pat.clone()).map(|(_, ty), _| Ty::Pointer(Box::new(ty))).pat()),
         (Succeed(ExpectParticle('[').pat()).pat(), (ExpectParticle('['), type_pat.clone(), ExpectParticle(';'), GetLiteral, ExpectParticle(']')).map_res(|(_, ty, _, count, _), _| {
             if let AstLiteral(Literal::Number(NumLit::Integer(c), th), loc) = count.clone() {
                 if th.as_ref().map(|t| t == &NumLitTy::UPtr).unwrap_or(true) {
