@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::ffi::c_uint;
 
 use llvm_sys::{prelude, core};
-use llvm_sys::prelude::LLVMModuleRef;
 use crate::ast::Type;
 use crate::error::{ParseError, ParseET};
 use crate::source::span::Span;
@@ -95,7 +94,7 @@ impl LLVMModGenEnv{
         }
     }
 
-    pub(crate) fn finish(self) -> Result<LLVMModuleRef, ParseError>{
+    pub(crate) fn finish(self) -> Result<prelude::LLVMModuleRef, ParseError>{
         unsafe {
             let fun = self.get_var("main", None)?;
             core::LLVMBuildCall2(self.builder, fun.llvm_type, fun.llvm_value, [].as_mut_ptr(), 0 as c_uint, c_str_ptr!(""));

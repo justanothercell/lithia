@@ -129,7 +129,7 @@ pub(crate) fn str_to_num_lit(mut num: String) -> Result<(NumLit, Option<NumLitTy
     } else { 10 };
     let float_like = num.contains('.');
     if float_like && radix != 10 {
-        return Err(ParseET::ParseLiteralError(Literal::Number(NumLit::Float(0f64), None), format!("expected radix 10 for floating point literal, found {radix}")).error())
+        return Err(ParseET::LiteralError(Literal::Number(NumLit::Float(0f64), None), format!("expected radix 10 for floating point literal, found {radix}")).error())
     }
     let mut float_like_ty = false;
     let ty = {
@@ -154,32 +154,34 @@ pub(crate) fn str_to_num_lit(mut num: String) -> Result<(NumLit, Option<NumLitTy
                 "u32" => NumLitTy::U32,
                 "u64" => NumLitTy::U64,
                 "u128" => NumLitTy::U128,
+                "uptr" => NumLitTy::UPtr,
                 "i8" => NumLitTy::I8,
                 "i16" => NumLitTy::I16,
                 "i32" => NumLitTy::I32,
                 "i64" => NumLitTy::I64,
                 "i128" => NumLitTy::I128,
+                "iptr" => NumLitTy::IPtr,
                 "f32" => { float_like_ty = true; NumLitTy::F32 },
                 "f64" => { float_like_ty = true; NumLitTy::F64 },
-                t => return Err(ParseET::ParseLiteralError(Literal::Number(if float_like {
+                t => return Err(ParseET::LiteralError(Literal::Number(if float_like {
                     NumLit::Float(0f64)
                 } else {
                     NumLit::Integer(0)
                 }, None), format!("unsupported type suffix: '{t}'")).error())
             };
             if float_like && !float_like_ty {
-                return Err(ParseET::ParseLiteralError(Literal::Number(NumLit::Float(0f64), None), format!("expected floating point type for floating point literal, found '{t}'")).error())
+                return Err(ParseET::LiteralError(Literal::Number(NumLit::Float(0f64), None), format!("expected floating point type for floating point literal, found '{t}'")).error())
             }
             Some(t)
         } else { None }
     };
     let lit = if float_like || float_like_ty {
         f64::from_str(&num).map(|f|NumLit::Float(f)).map_err(|_|
-            ParseET::ParseLiteralError(Literal::Number(NumLit::Float(0f64), None), format!("invalid float literal")).error()
+            ParseET::LiteralError(Literal::Number(NumLit::Float(0f64), None), format!("invalid float literal")).error()
         )
     } else {
         u128::from_str_radix(&num, radix).map(|i|NumLit::Integer(i)).map_err(|_|
-            ParseET::ParseLiteralError(Literal::Number(NumLit::Integer(0), None), format!("invalid integer literal")).error()
+            ParseET::LiteralError(Literal::Number(NumLit::Integer(0), None), format!("invalid integer literal")).error()
         )
     }?;
     Ok((lit, ty))

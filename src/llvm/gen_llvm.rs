@@ -12,12 +12,17 @@ pub(crate) fn build_llvm_ir(module: Module) -> Result<prelude::LLVMModuleRef, Pa
     env.finish()
 }
 
-pub(crate) fn build_exe<P: AsRef<Path>>(module: prelude::LLVMModuleRef, llvm_root: P, bitcode_file: P, exe_file: P, disassemble: bool) -> Result<(), ParseError>{
+pub(crate) fn build_exe<P: AsRef<Path>>(module: prelude::LLVMModuleRef, llvm_root: P, bitcode_file: P, exe_file: P, dump_ir: bool, disassemble: bool) -> Result<(), ParseError>{
     let llvm_root = llvm_root.as_ref().to_string_lossy().to_string();
     let bitcode_file = bitcode_file.as_ref().to_string_lossy().to_string();
     let exe_file = exe_file.as_ref().to_string_lossy().to_string();
     let success = unsafe { bit_writer::LLVMWriteBitcodeToFile(module, c_str_ptr!(bitcode_file)) };
     println!("wrote to file with exit code: {success}");
+    if dump_ir {
+        println!();
+        unsafe { core::LLVMDumpModule(module) }
+        println!();
+    }
     unsafe { core::LLVMDisposeModule(module) }
     println!("disposed of module");
     if disassemble {

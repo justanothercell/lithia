@@ -1,6 +1,7 @@
 pub(crate) mod tokenizer;
 
 use std::fmt::{Debug, Display, Formatter};
+use crate::ast::{AstLiteral, Type};
 use crate::util::indexer::{Indexable, Indexer};
 use crate::source::span::Span;
 
@@ -57,7 +58,8 @@ pub(crate) enum Literal {
     String(String),
     Char(char),
     Number(NumLit, Option<NumLitTy>),
-    Bool(bool)
+    Bool(bool),
+    Array(Vec<AstLiteral>, Type, usize),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -73,11 +75,13 @@ pub(crate) enum NumLitTy {
     U32,
     U64,
     U128,
+    UPtr,
     I8,
     I16,
     I32,
     I64,
     I128,
+    IPtr,
     F32,
     F64,
 }
@@ -90,11 +94,13 @@ impl Display for NumLitTy {
             NumLitTy::U32 => "u32",
             NumLitTy::U64 => "u64",
             NumLitTy::U128 => "u128",
+            NumLitTy::UPtr => "uptr",
             NumLitTy::I8 => "i8",
             NumLitTy::I16 => "i16",
             NumLitTy::I32 => "i32",
             NumLitTy::I64 => "i64",
             NumLitTy::I128 => "i128",
+            NumLitTy::IPtr => "iptr",
             NumLitTy::F32 => "f32",
             NumLitTy::F64 => "f64",
         })
@@ -109,6 +115,7 @@ impl Debug for Literal {
             Literal::Number(NumLit::Integer(i), t) => format!("Integer({i}, {t:?})"),
             Literal::Number(NumLit::Float(f), t) => format!("Float({f}, {t:?})"),
             Literal::Bool(b) => format!("Bool({b})"),
+            Literal::Array(v, l, s) => format!("Array({v:?};{l:?})"),
         })
     }
 }

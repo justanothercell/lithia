@@ -8,19 +8,20 @@ use std::fmt::Debug;
 use crate::source::span::Span;
 use crate::tokens::Literal;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Ident(pub(crate) String, pub(crate) Span);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Item(pub(crate) Vec<Ident>, pub(crate) Span);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct AstLiteral(pub(crate) Literal, pub(crate) Span);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Expression(pub(crate) Expr, pub(crate) Span);
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Expr {
+    Point(Box<Expression>),
     Literal(AstLiteral),
     Variable(Ident),
     Block(Block),
@@ -32,9 +33,9 @@ pub(crate) enum Expr {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Operator(pub(crate) Op, pub(crate) Span);
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Op {
     Add,
     Sub,
@@ -47,10 +48,10 @@ pub(crate) enum Op {
     RShift,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Statement(pub(crate) Expression, pub(crate) bool, pub(crate) Span);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Module{
     pub(crate) name: Ident,
     pub(crate) sub_modules: HashMap<String, Module>,
@@ -59,10 +60,10 @@ pub(crate) struct Module{
     pub(crate) loc: Span
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Block(pub(crate) Vec<Statement>, pub(crate) Span);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Func {
     pub(crate) name: Ident,
     pub(crate) args: Vec<(Ident, Type)>,
@@ -71,16 +72,16 @@ pub(crate) struct Func {
     pub(crate) loc: Span
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Const {
     pub(crate) name: Ident,
     pub(crate) ty: Type,
     pub(crate) val: Expression
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Type(pub(crate) Ty, pub(crate) Span);
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Ty {
     Single{
         generics: Vec<Type>,
@@ -88,7 +89,7 @@ pub(crate) enum Ty {
         loc: Span
     },
     Pointer(Box<Type>),
-    Array(Box<Type>),
+    Array(Box<Type>, usize),
     Tuple(Vec<Type>),
     Signature(Vec<Type>, Box<Type>)
 }

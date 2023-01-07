@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const};
+use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const, AstLiteral};
 use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk};
 use crate::ast::patterns::dynamic::{Latent, Mapping};
 use crate::ast::patterns::simple::{ExpectIdent, ExpectParticle, ExpectParticleExact, GetIdent, GetLiteral, GetNext, GetParticle};
 use crate::error::{ParseError, ParseET};
 use crate::source::span::Span;
+use crate::tokens::{Literal, NumLit, NumLitTy};
 
 pub(crate) struct Patterns{
     pub(crate) module_content: Pat<((HashMap<String, Func>, HashMap<String, Const>), Span)>
@@ -26,7 +27,17 @@ pub(crate) fn build_patterns() -> Patterns {
     let (type_pat, type_finalizer) = Latent::new();
     type_finalizer.finalize(Pattern::named("type", Match(vec![
         (Succeed(ExpectParticle('*').pat()).pat(), (ExpectParticle('*'), type_pat.clone()).map(|(_, ty), _| Ty::Pointer(Box::new(ty))).pat()),
-        (Succeed(ExpectParticle('[').pat()).pat(), (ExpectParticle('['), type_pat.clone(), ExpectParticle(']')).map(|(_, ty, _), _| Ty::Array(Box::new(ty))).pat()),
+        (Succeed(ExpectParticle('[').pat()).pat(), (ExpectParticle('['), type_pat.clone(), ExpectParticle(';'), GetLiteral, ExpectParticle(']')).map_res(|(_, ty, _, count, _), _| {
+            if let AstLiteral(Literal::Number(NumLit::Integer(c), th), loc) = count.clone() {
+                if th.as_ref().map(|t| t == &NumLitTy::UPtr).unwrap_or(true) {
+                    Ok(Ty::Array(Box::new(ty), c as usize))
+                } else {
+                    Err(ParseET::LiteralError(count.0, format!("expected uptr, found {}", th.unwrap())).at(loc).when("parsing array type"))
+                }
+            } else {
+                Err(ParseET::LiteralError(count.0, "expected uptr".to_string()).at(count.1).when("parsing array type"))
+            }
+        }).pat()),
         (Succeed(item.clone()).pat(), item.clone().map(|item, loc| Ty::Single { generics: vec![], base_type: item, loc }).pat()),
     ]), |ty, loc| Type(ty, loc)));
 
@@ -43,6 +54,7 @@ pub(crate) fn build_patterns() -> Patterns {
     expression_finalizer.finalize(Pattern::named("expression",
             Match(vec![
                 (Succeed((item.clone(), ExpectParticle('(')).pat()).pat(), function_call.clone()),
+                (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'), expression.clone()).map(|(_, expr), loc| Expr::Point(Box::new(expr))).pat()),
                 (Succeed(GetIdent.pat()).pat(), GetIdent.map(|ident, loc| Expr::Variable(ident)).pat()),
                 (Succeed(GetLiteral.pat()).pat(), GetLiteral.map(|lit, loc| Expr::Literal(lit)).pat())
             ]), |expr, loc| Expression(expr, loc)));

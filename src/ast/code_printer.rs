@@ -12,7 +12,7 @@ impl CodePrinter for Ty {
     fn print(&self) -> String {
         match self {
             Ty::Pointer(ty) => format!("*{}", ty.0.print()),
-            Ty::Array(ty) => format!("[{}]", ty.0.print()),
+            Ty::Array(ty, c) => format!("[{};{c}]", ty.0.print()),
             Ty::Single { generics, base_type, .. } =>
                 if generics.len() == 0{
                     format!("{}", base_type.print())
@@ -46,6 +46,7 @@ impl CodePrinter for Literal {
             Literal::Number(NumLit::Integer(i), ty) => format!("{i}{}", ty.as_ref().map_or(String::new(), |t| format!("{t}"))),
             Literal::Number(NumLit::Float(f), ty) => format!("{f}{}", ty.as_ref().map_or(String::new(), |t| format!("{t}"))),
             Literal::Bool(b) => format!("{b}"),
+            Literal::Array(v, ty, _) => format!("[{};{}]", v.iter().map(|v|v.print()).collect::<Vec<_>>().join(", "), ty.0.print()),
         }
     }
 }
@@ -60,6 +61,7 @@ impl CodePrinter for Expression {
     fn print(&self) -> String {
         match &self.0 {
             Expr::FuncCall(ident, args) => format!("{}({})", ident.print(), args.iter().map(|e|e.print()).collect::<Vec<_>>().join(", ")),
+            Expr::Point(expr) => format!("&{}", expr.print()),
             Expr::Literal(lit) => lit.print(),
             Expr::Variable(var) => var.print(),
             Expr::UnaryOp(op, box expr) => format!("{}{}", op.print(), expr.print()),

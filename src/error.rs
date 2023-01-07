@@ -32,8 +32,9 @@ pub(crate) enum ParseET {
     EmptyInput,
     IOError(std::io::Error),
     TokenizationError(String),
-    ParseLiteralError(Literal, String),
+    LiteralError(Literal, String),
     ParsingError(String),
+    CompilationError(String),
     AlreadyDefinedError(String, String, Span),
     VariableNotFound(String)
 }
@@ -63,14 +64,16 @@ impl Display for ParseError {
                    ParseET::EmptyInput => format!("Input error:\n    input was empty"),
                    ParseET::IOError(e) => format!("IO error:\n    {}", e),
                    ParseET::TokenizationError(e) => format!("Tokenization error:\n    {}", e),
-                   ParseET::ParseLiteralError(lit, e) => format!("{} literal parsing error:\n    {}", match lit {
+                   ParseET::LiteralError(lit, e) => format!("{} literal error:\n    {}", match lit {
                        Literal::String(_) => "String",
                        Literal::Char(_) => "Char",
                        Literal::Number(NumLit::Integer(_), _) => "Integer",
                        Literal::Number(NumLit::Float(_), _) => "Float",
                        Literal::Bool(_) => "Float",
+                       Literal::Array(..) => "Array"
                    }, e),
                    ParseET::ParsingError(e) => format!("Parsing error:\n    {}", e),
+                   ParseET::CompilationError(e) => format!("Compilation error:\n    {}", e),
                    ParseET::AlreadyDefinedError(what, name, loc) =>
                        format!("Multiple definitions error:\n    {} {} was already defined",
                        what, name),
