@@ -47,11 +47,11 @@ impl Module {
         // === register functions ===
         for (ident, func) in &self.functions {
             let function_type = unsafe {
-                core::LLVMFunctionType(core::LLVMVoidType(), [].as_mut_ptr(), 0 as u32, false as LLVMBool)
+                core::LLVMFunctionType(func.ret.llvm_type(env)?, func.args.clone().into_iter().map(|(i, t)|t.llvm_type(env)).collect::<Result<Vec<_>, _>>()?.as_mut_ptr(), func.args.len() as u32, false as LLVMBool)
             };
             let function = unsafe { core::LLVMAddFunction(env.module, c_str_ptr!(ident), function_type) };
             env.globals.insert(ident.to_string(), Variable {
-                ast_type: func.ret.clone(),
+                ast_type: Type(Ty::Signature(func.args.clone().into_iter().map(|(i, t)|t).collect(), Box::new(func.ret.clone())), func.name.1.clone()),
                 llvm_type: function_type,
                 llvm_value: function,
             });
@@ -151,7 +151,8 @@ impl Block {
 
 impl Type {
     pub(crate) fn llvm_type(&self, env: &mut LLVMModGenEnv) -> Result<prelude::LLVMTypeRef, ParseError> {
-        unsafe {
+        println!("{}", self.print());
+        let r = unsafe {
             Ok(match &self.0 {
                 Ty::Single(generics, base_type) => {
                     if generics.len() > 0 || base_type.0.len() > 1 {
@@ -177,10 +178,18 @@ impl Type {
                 }
                 Ty::Pointer(ty) => core::LLVMPointerType(ty.llvm_type(env)?, 0), // TODO: replace 0 with adapting value
                 Ty::Array(ty, usize) => core::LLVMArrayType(ty.llvm_type(env)?, *usize as c_uint),
-                Ty::Tuple(tys) => *tys.iter().map(|ty|ty.llvm_type(env)).collect::<Result<Vec<_>, ParseError>>()?.as_mut_ptr(),
+                Ty::Tuple(tys) => {
+                    if tys.len() > 0 {
+                        *tys.iter().map(|ty|ty.llvm_type(env)).collect::<Result<Vec<_>, ParseError>>()?.as_mut_ptr()
+                    } else {
+                        core::LLVMVoidType()
+                    }
+                },
                 Ty::Signature(_, _) => unimplemented!("signature types to llvm type not implemented yet")
             })
-        }
+        };
+        println!("!");
+        r
     }
 }
 

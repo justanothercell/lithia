@@ -33,6 +33,18 @@ impl<Item> Consumer for Match<Item> {
     }
 }
 
+pub(crate) struct Optional<Pred, Out>(pub(crate) Pat<Pred>, pub(crate) Pat<Out>);
+impl<Pred, Out> Consumer for Optional<Pred, Out>{
+    type Output = Option<Out>;
+
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
+        Ok(if self.0.consume(&mut iter.clone()).is_ok() {
+            Some(self.1.consume(iter)?)
+        } else { None })
+    }
+}
+
+
 pub(crate) struct Succeed<Out>(pub(crate) Pat<Out>);
 impl<Out> Consumer for Succeed<Out>{
     type Output = ();

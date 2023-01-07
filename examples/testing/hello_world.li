@@ -5,14 +5,21 @@ const MPTY: [u8;1] = "";
 const WELCOME1: [u8;16] = "Hello, worlds!1";
 const WELCOME2: [u8;16] = "Hello, worlds!2";
 const WELCOME3: [u8;16] = "Hello, worlds!3";
-const INT: u8 = 255u8;
+const INT: i8 = 127i8;
+
+fn wants_int(foo: i8){}
+fn wants_int_ptr(foo: &i8){}
 
 fn main(){
+    wants_int(INT);
+    wants_int_ptr(INT);
+
     //puts("inline welcome");
     puts(&"inline welcome2");
     puts(&&"inline welcome3");
 
     puts(MPTY);
+    puts(INT);
     puts(WELCOME1);
     puts(&WELCOME2);
     puts(&&WELCOME3);

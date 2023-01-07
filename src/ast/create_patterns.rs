@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const, AstLiteral};
 use crate::ast::patterns::{Consumer, Pat, Pattern};
-use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk};
+use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk, Optional};
 use crate::ast::patterns::dynamic::{Latent, Mapping};
 use crate::ast::patterns::simple::{ExpectIdent, ExpectParticle, ExpectParticleExact, GetIdent, GetLiteral, GetNext, GetParticle};
 use crate::error::{ParseError, ParseET};
@@ -71,18 +71,20 @@ pub(crate) fn build_patterns() -> Patterns {
             ExpectIdent("fn".to_string()),
             GetIdent,
             ExpectParticle('('),
+            While(Fail(ExpectParticle(')').pat()).pat(), (GetIdent, ExpectParticle(':'), type_pat.clone()).map(|(i, _, t), _| (i, t)).pat()),
             ExpectParticle(')').map(|_, loc|loc),
+            Optional(ExpectParticle('-').pat(), (ExpectParticle('-'), ExpectParticleExact('>', true), type_pat.clone()).map(|(_, _, ty), _|ty).pat()),
             Match(vec![
                 (Succeed(ExpectParticle('{').pat()).pat(), (ExpectParticle('{'), block.clone(), ExpectParticle('}')).map(|(_, block, _), _| Some(block)).pat()),
                 (Succeed(ExpectParticle(';').pat()).pat(), ExpectParticle(';').map(|_, _| None).pat())
             ])
-    ), |(_, name, _, sig_end_loc, body), loc| {
+    ), |(_, name, _, args, sig_end_loc, ret_ty, body), loc| {
         let mut signature_loc = name.1.clone();
         signature_loc.combine(sig_end_loc);
         Func {
             name,
-            args: vec![],
-            ret: Type(Ty::Tuple(vec![]), signature_loc),
+            args,
+            ret: ret_ty.unwrap_or(Type(Ty::Tuple(vec![]), signature_loc)),
             body,
             loc,
     }});
