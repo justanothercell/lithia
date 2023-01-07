@@ -5,6 +5,7 @@ pub(crate) mod create_patterns;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
+use crate::error::ParseError;
 use crate::source::span::Span;
 use crate::tokens::Literal;
 
@@ -13,6 +14,11 @@ pub(crate) struct Ident(pub(crate) String, pub(crate) Span);
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Item(pub(crate) Vec<Ident>, pub(crate) Span);
+impl Item{
+    pub(crate) fn new(parts: &Vec<&str>, loc: Span) -> Self {
+        Self(parts.iter().map(|p| Ident(p.to_string(), loc.clone())).collect(), loc.clone())
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct AstLiteral(pub(crate) Literal, pub(crate) Span);
@@ -29,7 +35,8 @@ pub(crate) enum Expr {
     BinaryOp(Operator, Box<Expression>, Box<Expression>),
     UnaryOp(Operator, Box<Expression>),
     VarCreate(Item, bool, Option<Type>, Box<Expression>),
-    VarAssign(Item, Option<Operator>, Box<Expression>)
+    VarAssign(Item, Option<Operator>, Box<Expression>),
+    Return(Option<Box<Expression>>),
 }
 
 
@@ -83,11 +90,7 @@ pub(crate) struct Const {
 pub(crate) struct Type(pub(crate) Ty, pub(crate) Span);
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Ty {
-    Single{
-        generics: Vec<Type>,
-        base_type: Item,
-        loc: Span
-    },
+    Single(Vec<Type>, Item),
     Pointer(Box<Type>),
     Array(Box<Type>, usize),
     Tuple(Vec<Type>),
@@ -103,5 +106,17 @@ impl Ty {
         } else {
             false
         }
+    }
+}
+
+impl AstLiteral {
+    pub(crate) fn get_type(&self) -> Result<Type, ParseError>{
+        Ok(match &self.0 {
+            Literal::String(s) => Type(Ty::Array(Box::new(Type(Ty::Single(vec![], Item::new(&vec!["u8"], self.1.clone())), self.1.clone())), s.len() + 1), self.1.clone()),
+            Literal::Char(_) => Type(Ty::Single(vec![], Item::new(&vec!["u8"], self.1.clone())), self.1.clone()),
+            Literal::Number(_, ty) => unimplemented!(),
+            Literal::Bool(_) => Type(Ty::Single(vec![], Item::new(&vec!["bool"], self.1.clone())), self.1.clone()),
+            Literal::Array(_, elem_ty, len) =>  Type(Ty::Array(Box::new(elem_ty.clone()), *len), self.1.clone())
+        })
     }
 }

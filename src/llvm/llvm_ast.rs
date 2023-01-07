@@ -3,6 +3,7 @@ use llvm_sys::{prelude::LLVMBool, prelude, core};
 use llvm_sys::prelude::LLVMValueRef;
 use crate::ast::{AstLiteral, Block, Expr, Expression, Ident, Item, Module, Ty, Type};
 use crate::{c_str_ptr};
+use crate::ast::code_printer::CodePrinter;
 use crate::error::{ParseError, ParseET};
 use crate::llvm::{LLVMModGenEnv, Variable};
 use crate::source::span::Span;
@@ -10,19 +11,12 @@ use crate::tokens::Literal;
 
 impl Module {
     pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<(), ParseError> {
+        // === manual extern ===
         unsafe {
             let puts_ty_param = Type(Ty::Pointer(Box::new(
-                Type(Ty::Array(Box::new(Type(Ty::Single {
-                    generics: vec![],
-                    base_type: Item(vec![Ident("u8".to_string(), Span::dummy())], Span::dummy()),
-                    loc: Span::dummy(),
-                }, Span::dummy())), 0), Span::dummy())
+                Type(Ty::Array(Box::new(Type(Ty::Single(vec![], Item::new(&vec!["u8"], Span::dummy())), Span::dummy())), 0), Span::dummy())
             )), Span::dummy());
-            let puts_ret = Type(Ty::Single {
-                generics: vec![],
-                base_type: Item(vec![Ident("i32".to_string(), Span::dummy())], Span::dummy()),
-                loc: Span::dummy(),
-            }, Span::dummy());
+            let puts_ret = Type(Ty::Single(vec![], Item::new(&vec!["i32"], Span::dummy())), Span::dummy());
             let puts_fn_ty = core::LLVMFunctionType(puts_ret.llvm_type(env)?, [puts_ty_param.llvm_type(env)?].as_mut_ptr(), 1 as c_uint, false as LLVMBool);
             let puts_fn = core::LLVMAddFunction(env.module, c_str_ptr!("puts"), puts_fn_ty.clone());
             env.globals.insert("puts".to_string(), Variable {
@@ -31,7 +25,7 @@ impl Module {
                 llvm_value: puts_fn,
             });
         }
-
+        // === global consts ===
         for (ident, constant) in &self.constants {
             unsafe {
                 let ty = constant.ty.llvm_type(env)?;
@@ -41,7 +35,8 @@ impl Module {
                 } else {
                     return Err(ParseET::CompilationError("constant can only be initialized by literal".to_string()).at(constant.val.1.clone()).when("compiling constant"))
                 };
-                core::LLVMSetInitializer(v, val);
+                validate_type_eq(&constant.ty, &val.ast_type)?;
+                core::LLVMSetInitializer(v, val.llvm_value);
                 env.globals.insert(ident.to_string(), Variable {
                     ast_type: constant.ty.clone(),
                     llvm_type: ty,
@@ -71,7 +66,8 @@ impl Module {
                 core::LLVMPositionBuilderAtEnd(b, entry_block);
                 b
             };
-            func.body.as_ref().unwrap().build(env, None, true)?;
+            let mut ret = func.body.as_ref().unwrap().build(env, None, true)?;
+            validate_type_eq(&func.ret, &ret.ast_type)?;
             unsafe {
                 core::LLVMBuildRetVoid(env.builder);
                 core::LLVMDisposeBuilder(env.builder);
@@ -89,15 +85,30 @@ impl Expression {
                 Expr::Literal(lit) => lit.llvm_literal(env)?,
                 Expr::Point(expr) => {
                     let v = expr.build(env, ret_name)?;
-                    let ptr = core::LLVMBuildAlloca(env.builder, )
-                    core::LLVMBuildStore(env.builder, v)
+                    let ptr = core::LLVMBuildAlloca(env.builder, v.llvm_type, c_str_ptr!(""));
+                    core::LLVMBuildStore(env.builder, v.llvm_value, ptr);
+                    Variable {
+                        ast_type: Type(Ty::Pointer(Box::new(v.ast_type)),self.1.clone()),
+                        llvm_type: core::LLVMPointerType(v.llvm_type, 0), // TODO: replace 0
+                        llvm_value: ptr,
+                    }
                 }
-                Expr::Variable(var) => env.get_var(&var.0, Some(&var.1))?.llvm_value,
+                Expr::Variable(var) => env.get_var(&var.0, Some(&var.1))?,
                 Expr::Block(block) => block.build(env, None, false)?,
                 Expr::FuncCall(fun, args) => {
                     let var = env.get_var(&fun.0.first().unwrap().0, Some(&fun.1))?;
-                    let mut args = args.iter().map(|a| a.build(env, None)).collect::<Result<Vec<_>, _>>()?;
-                    core::LLVMBuildCall2(env.builder, var.llvm_type, var.llvm_value, args.as_mut_ptr(), args.len() as c_uint, c_str_ptr!(ret_name.unwrap_or(String::new())))
+                    if let Ty::Signature(_args, ret) = var.ast_type.0 {
+                        let mut args = args.iter().map(|a| a.build(env, None).map(|v| v.llvm_value)).collect::<Result<Vec<_>, _>>()?;
+                        let ty = ret.llvm_type(env)?;
+                        let out = core::LLVMBuildCall2(env.builder, var.llvm_type, var.llvm_value, args.as_mut_ptr(), args.len() as c_uint, c_str_ptr!(ret_name.unwrap_or(String::new())));
+                        Variable {
+                            ast_type: *ret,
+                            llvm_type: ty,
+                            llvm_value: out,
+                        }
+                    } else {
+                        return Err(ParseET::TypeError("function".to_string(), format!("{:?}", var.ast_type.0)).at(self.1.clone()).when("compiling expression"))
+                    }
                 },
                 //Expr::BinaryOp(_, _, _) => {}
                 //Expr::UnaryOp(_, _) => {}
@@ -112,12 +123,23 @@ impl Expression {
 impl Block {
     pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>, opaque: bool) -> Result<Variable, ParseError> {
         env.push_stack(opaque);
-        let mut r = None;
-        for stmt in &self.0 {
-            r = Some(stmt.0.build(env, None)?);
+        let mut ret = None;
+        for (i, stmt) in self.0.iter().enumerate() {
+            let r = stmt.0.build(env, None)?;
+            if let Expr::Return(_) = stmt.0.0 {
+                ret = Some(r);
+                break
+            }
+            if !stmt.1 {
+                ret = Some(r);
+                if self.0.len() != i + 1 {
+                    return Err(ParseET::CompilationError(format!("returning expression needs to be at end of block")).at(stmt.2.clone()).when("compiling block"))
+                }
+                break
+            }
         }
         env.pop_stack();
-        unsafe {Ok(r.unwrap_or_else(||Variable {
+        unsafe {Ok(ret.unwrap_or_else(||Variable {
             ast_type: Type(Ty::Tuple(vec![]), self.1.clone()),
             llvm_type: core::LLVMVoidType(),
             llvm_value: core::LLVMConstNull(core::LLVMVoidType()),
@@ -129,9 +151,9 @@ impl Type {
     pub(crate) fn llvm_type(&self, env: &mut LLVMModGenEnv) -> Result<prelude::LLVMTypeRef, ParseError> {
         unsafe {
             Ok(match &self.0 {
-                Ty::Single { generics, base_type, loc } => {
-                    if base_type.0.len() > 1 {
-                        unimplemented!("types with more than one item in path")
+                Ty::Single(generics, base_type) => {
+                    if generics.len() > 0 || base_type.0.len() > 1 {
+                        panic!("type was not correctly resolved")
                     }
                     match base_type.0.first().unwrap().0.as_str() {
                         "u8" | "i8" => core::LLVMInt8Type(),
@@ -162,29 +184,37 @@ impl Type {
 
 impl AstLiteral {
     pub(crate) fn llvm_literal(&self, env: &mut LLVMModGenEnv) -> Result<Variable, ParseError>{
-        unsafe {
-            Ok(match &self.0 {
+        Ok(Variable{
+            ast_type: self.get_type()?,
+            llvm_type: self.get_type()?.llvm_type(env)?,
+            llvm_value: unsafe {
+            match &self.0 {
                 Literal::String(s) => AstLiteral::llvm_literal(
                     &AstLiteral(Literal::Array(
                         {
                             let mut s = s.clone();
                             s.push('\0');
                             s.chars().map(|c| AstLiteral(Literal::Char(c), self.1.clone())).collect()
-                        }
-                        , Type(Ty::Single {
-                    generics: vec![],
-                    base_type: Item(vec![Ident("u8".to_string(), self.1.clone())], self.1.clone()),
-                    loc: self.1.clone(),
-                }, self.1.clone()), s.len() + 1), self.1.clone()), env)?,
-                Literal::Char(c) => Variable { ast_type: Type(Ty::Single { generics: vec![], base_type: Item(vec![Ident("u8".to_string(), self.1.clone())], self.1.clone()), loc: self.1.clone() }, self.1.clone()), llvm_type: core::LLVMInt8Type(), llvm_value: core::LLVMConstInt(core::LLVMInt8Type(), *c as u8 as c_ulonglong, false as LLVMBool, ) },
+                        },
+                        Type(Ty::Single(vec![], Item::new(&vec!["u8"], self.1.clone())), self.1.clone()),
+                        s.len() + 1), self.1.clone()), env)?.llvm_value,
+                Literal::Char(c) => core::LLVMConstInt(core::LLVMInt8Type(), *c as u8 as c_ulonglong, false as LLVMBool),
                 //Literal::Number(_, _) => {}
-                Literal::Bool(b) => Variable { ast_type: Type(Ty::Single { generics: vec![], base_type: Item(vec![Ident("u8".to_string(), self.1.clone())], self.1.clone()), loc: self.1.clone() }, self.1.clone()), llvm_type: core::LLVMInt8Type(), llvm_value: core::LLVMConstInt(core::LLVMInt8Type(), *b as u8 as c_ulonglong, false as LLVMBool, ) },,
+                Literal::Bool(b) => core::LLVMConstInt(core::LLVMInt1Type(), *b as c_ulonglong, false as LLVMBool),
                 Literal::Array(arr, elem_ty , len) =>
                     core::LLVMConstArray(elem_ty.llvm_type(env)?,
-                                         arr.iter().map(|e|e.llvm_literal(env)).collect::<Result<Vec<_>, ParseError>>()?.as_mut_ptr(),
+                                         arr.iter().map(|e|e.llvm_literal(env).map(|v|v.llvm_value)).collect::<Result<Vec<_>, ParseError>>()?.as_mut_ptr(),
                                          *len as c_uint),
                 _ => unimplemented!("ty to llvm ty")
-            })
-        }
+            }
+        }})
+    }
+}
+
+fn validate_type_eq(a: &Type, b: &Type) -> Result<(), ParseError> {
+    if a == b {
+        Ok(())
+    } else {
+        Err(ParseET::TypeError(a.print(), b.print()).ats(vec![a.1.clone(), b.1.clone()]))
     }
 }

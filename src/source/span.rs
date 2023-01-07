@@ -2,11 +2,17 @@ use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 use crate::source::{CodePoint, Source};
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub(crate) struct Span {
     pub(crate) source: Rc<Source>,
     pub(crate) start: usize,
     pub(crate) end: usize
+}
+
+impl PartialEq for Span {
+    fn eq(&self, other: &Self) -> bool {
+        true
+    }
 }
 
 impl Span {
@@ -28,6 +34,10 @@ impl Span {
             start: 0,
             end: 0
         }
+    }
+
+    pub(crate) fn equals(&self, other: &Span) -> bool {
+        Rc::ptr_eq(&self.source, &other.source) && self.start == other.start && self.end == other.end
     }
 
     pub(crate) fn from_points(a: CodePoint, b: CodePoint) -> Self{

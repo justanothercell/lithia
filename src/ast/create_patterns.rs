@@ -38,7 +38,7 @@ pub(crate) fn build_patterns() -> Patterns {
                 Err(ParseET::LiteralError(count.0, "expected uptr".to_string()).at(count.1).when("parsing array type"))
             }
         }).pat()),
-        (Succeed(item.clone()).pat(), item.clone().map(|item, loc| Ty::Single { generics: vec![], base_type: item, loc }).pat()),
+        (Succeed(item.clone()).pat(), item.clone().map(|item, loc| Ty::Single(vec![], item)).pat()),
     ]), |ty, loc| Type(ty, loc)));
 
     let (expression, expression_finalizer) = Latent::new();
@@ -71,18 +71,21 @@ pub(crate) fn build_patterns() -> Patterns {
             ExpectIdent("fn".to_string()),
             GetIdent,
             ExpectParticle('('),
-            ExpectParticle(')'),
+            ExpectParticle(')').map(|_, loc|loc),
             Match(vec![
                 (Succeed(ExpectParticle('{').pat()).pat(), (ExpectParticle('{'), block.clone(), ExpectParticle('}')).map(|(_, block, _), _| Some(block)).pat()),
-                (Succeed(ExpectParticle(';').pat()).pat(), ().map(|_, _| None).pat())
+                (Succeed(ExpectParticle(';').pat()).pat(), ExpectParticle(';').map(|_, _| None).pat())
             ])
-    ), |(_, name, _, _, body), loc| Func {
-        name,
-        args: vec![],
-        ret: Type(Ty::Tuple(vec![]), loc.clone()),
-        body,
-        loc,
-    });
+    ), |(_, name, _, sig_end_loc, body), loc| {
+        let mut signature_loc = name.1.clone();
+        signature_loc.combine(sig_end_loc);
+        Func {
+            name,
+            args: vec![],
+            ret: Type(Ty::Tuple(vec![]), signature_loc),
+            body,
+            loc,
+    }});
     let constant = Pattern::named("constant", (
         ExpectIdent("const".to_string()),
         GetIdent,
@@ -111,19 +114,19 @@ pub(crate) fn build_patterns() -> Patterns {
                     ModuleContent::Function(f) => {
                         let l = f.name.1.clone();
                         if constants.contains_key(&f.name.0){
-                            return Err(ParseET::AlreadyDefinedError("constant".to_string(), f.name.0, f.name.1).at(l))
+                            return Err(ParseET::AlreadyDefinedError("constant".to_string(), f.name.0).ats(vec![l, f.name.1]))
                         }
                         if let Some(f) = functions.insert(f.name.0.clone(), f){
-                            return Err(ParseET::AlreadyDefinedError("function".to_string(), f.name.0, f.name.1).at(l))
+                            return Err(ParseET::AlreadyDefinedError("function".to_string(), f.name.0).ats(vec![l, f.name.1]))
                         }
                     },
                     ModuleContent::Const(c) => {
                         let l = c.name.1.clone();
                         if functions.contains_key(&c.name.0){
-                            return Err(ParseET::AlreadyDefinedError("function".to_string(), c.name.0, c.name.1).at(l))
+                            return Err(ParseET::AlreadyDefinedError("function".to_string(), c.name.0).ats(vec![l, c.name.1]))
                         }
                         if let Some(c) = constants.insert(c.name.0.clone(), c){
-                            return Err(ParseET::AlreadyDefinedError("constant".to_string(), c.name.0, c.name.1).at(l))
+                            return Err(ParseET::AlreadyDefinedError("constant".to_string(), c.name.0).ats(vec![l, c.name.1]))
                         }
                     }
                 };

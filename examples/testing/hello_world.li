@@ -1,12 +1,18 @@
 //#[extern("C")]
 //fn puts(*[u8]) -> i32;
 
-const WELCOME: [u8;0] = "Hello, worlds!";
-
+const WELCOME1: [u8;16] = "Hello, worlds!1";
+const WELCOME2: [u8;16] = "Hello, worlds!2";
+const WELCOME3: [u8;16] = "Hello, worlds!3";
 
 fn main(){
-    puts(WELCOME);
-    puts(&"another welcome!");
+    //puts("inline welcome");
+    puts(&"inline welcome2");
+    puts(&&"inline welcome3");
+
+    puts(WELCOME1);
+    puts(&WELCOME2);
+    puts(&&WELCOME3);
 }
 
 

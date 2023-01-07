@@ -24,13 +24,9 @@
       <change beforePath="$PROJECT_DIR$/src/ast/code_printer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/code_printer.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ast/create_patterns.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/create_patterns.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ast/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/compiler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/compiler.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/error.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/llvm/gen_llvm.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/gen_llvm.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/llvm/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tokens/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/tokens/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tokens/tokenizer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/tokens/tokenizer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/source/span.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/source/span.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -143,7 +139,7 @@
       <workItem from="1672741138271" duration="29336000" />
       <workItem from="1672822528299" duration="8483000" />
       <workItem from="1672914711858" duration="27218000" />
-      <workItem from="1673099247593" duration="13115000" />
+      <workItem from="1673099247593" duration="20946000" />
     </task>
     <servers />
   </component>

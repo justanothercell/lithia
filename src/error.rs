@@ -5,7 +5,7 @@ use crate::tokens::{Literal, NumLit};
 #[derive(Debug)]
 pub(crate) struct ParseError {
     et: ParseET,
-    loc: Option<Span>,
+    locs: Vec<Span>,
     context: Vec<String>
 }
 
@@ -15,7 +15,11 @@ impl ParseError {
         self
     }
     pub(crate) fn at(mut self, loc: Span) -> Self{
-        self.loc = Some(loc);
+        self.locs = vec![loc];
+        self
+    }
+    pub(crate) fn ats(mut self, locs: Vec<Span>) -> Self{
+        self.locs = locs;
         self
     }
 }
@@ -35,22 +39,30 @@ pub(crate) enum ParseET {
     LiteralError(Literal, String),
     ParsingError(String),
     CompilationError(String),
-    AlreadyDefinedError(String, String, Span),
-    VariableNotFound(String)
+    AlreadyDefinedError(String, String),
+    VariableNotFound(String),
+    TypeError(String, String)
 }
 
 impl ParseET {
     pub(crate) fn error(self) -> ParseError {
         ParseError {
             et: self,
-            loc: None,
+            locs: vec![],
             context: vec![]
         }
     }
     pub(crate) fn at(self, loc: Span) -> ParseError {
         ParseError {
             et: self,
-            loc: Some(loc),
+            locs: vec![loc],
+            context: vec![]
+        }
+    }
+    pub(crate) fn ats(self, locs: Vec<Span>) -> ParseError {
+        ParseError {
+            et: self,
+            locs: locs,
             context: vec![]
         }
     }
@@ -58,13 +70,13 @@ impl ParseET {
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}{}{}",
+        write!(f, "{}{}{}",
                match &self.et {
-                   ParseET::EOF => format!("Input error:\n    reached end of file"),
-                   ParseET::EmptyInput => format!("Input error:\n    input was empty"),
-                   ParseET::IOError(e) => format!("IO error:\n    {}", e),
-                   ParseET::TokenizationError(e) => format!("Tokenization error:\n    {}", e),
-                   ParseET::LiteralError(lit, e) => format!("{} literal error:\n    {}", match lit {
+                   ParseET::EOF => format!("Input Error:\n    reached end of file"),
+                   ParseET::EmptyInput => format!("Input Error:\n    input was empty"),
+                   ParseET::IOError(e) => format!("IO Error:\n    {}", e),
+                   ParseET::TokenizationError(e) => format!("Tokenization Error:\n    {}", e),
+                   ParseET::LiteralError(lit, e) => format!("{} literal Error:\n    {}", match lit {
                        Literal::String(_) => "String",
                        Literal::Char(_) => "Char",
                        Literal::Number(NumLit::Integer(_), _) => "Integer",
@@ -72,32 +84,30 @@ impl Display for ParseError {
                        Literal::Bool(_) => "Float",
                        Literal::Array(..) => "Array"
                    }, e),
-                   ParseET::ParsingError(e) => format!("Parsing error:\n    {}", e),
-                   ParseET::CompilationError(e) => format!("Compilation error:\n    {}", e),
-                   ParseET::AlreadyDefinedError(what, name, loc) =>
-                       format!("Multiple definitions error:\n    {} {} was already defined",
+                   ParseET::ParsingError(e) => format!("Parsing Error:\n    {}", e),
+                   ParseET::CompilationError(e) => format!("Compilation Error:\n    {}", e),
+                   ParseET::AlreadyDefinedError(what, name) =>
+                       format!("Multiple definitions Error:\n    {} {} was already defined",
                        what, name),
-                   ParseET::VariableNotFound(ident) => format!("Name error:\n    could not find variable {ident}")
+                   ParseET::VariableNotFound(ident) => format!("Name Error:\n    could not find variable {ident}"),
+                   ParseET::TypeError(expected, found) => format!("Type Error:\n    expected {expected} found {found}"),
                },
                if self.context.len() > 0 {
                    format!("\n    while {}", self.context.join("\n    while "))
                } else {
                    String::new()
                },
-               match &self.et {
-                   ParseET::AlreadyDefinedError(what, name, loc) =>
-                       format!("\n\n{:?}: {:?}\n{}", loc.source, loc, loc.render_span_code(2)),
-                    _ => String::new()
-               },
-               if let Some(loc) = &self.loc {
-                   format!("\n\n{:?}: {:?}\n{}",
-                       loc.source,
-                       loc,
-                       loc.render_span_code(2)
-                   )
-               } else {
-                   String::new()
-               },
+               {
+                   let mut locs = String::new();
+                   for loc in &self.locs {
+                       locs.push_str(&format!("\n{:?}: {:?}\n{}",
+                                              loc.source,
+                                              loc,
+                                              loc.render_span_code(2)
+                       ))
+                   }
+                   locs
+               }
         )
     }
 }
