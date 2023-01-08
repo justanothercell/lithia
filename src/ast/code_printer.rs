@@ -17,8 +17,10 @@ impl CodePrinter for Type {
 impl CodePrinter for Ty {
     fn print(&self) -> String {
         match self {
-            Ty::Pointer(ty) => format!("*{}", ty.print()),
+            Ty::Pointer(ty) => format!("&{}", ty.print()),
+            Ty::RawPointer => "&".to_string(),
             Ty::Array(ty, c) => format!("[{};{c}]", ty.print()),
+            Ty::Slice(ty) => format!("[{}]", ty.print()),
             Ty::Single(generics, base_type) =>
                 if generics.len() == 0{
                     format!("{}", base_type.print())

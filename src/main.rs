@@ -4,6 +4,8 @@
 #![feature(adt_const_params)]
 #![feature(stmt_expr_attributes)]
 #![feature(inherent_associated_types)]
+#![feature(result_flattening)]
+#![feature(let_chains)]
 
 extern crate core;
 

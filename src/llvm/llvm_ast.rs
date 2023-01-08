@@ -13,9 +13,7 @@ impl Module {
     pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<(), ParseError> {
         // === manual extern ===
         unsafe {
-            let puts_ty_param = Type(Ty::Pointer(Box::new(
-                Type(Ty::Array(Box::new(Type(Ty::Single(vec![], Item::new(&vec!["u8"], Span::dummy())), Span::dummy())), 0), Span::dummy())
-            )), Span::dummy());
+            let puts_ty_param = Type(Ty::RawPointer, Span::dummy());
             let puts_ret = Type(Ty::Single(vec![], Item::new(&vec!["i32"], Span::dummy())), Span::dummy());
             let puts_fn_ty = core::LLVMFunctionType(puts_ret.llvm_type(env)?, [puts_ty_param.llvm_type(env)?].as_mut_ptr(), 1 as c_uint, false as LLVMBool);
             let puts_fn = core::LLVMAddFunction(env.module, c_str_ptr!("puts"), puts_fn_ty.clone());
@@ -28,14 +26,30 @@ impl Module {
         // === global consts ===
         for (ident, constant) in &self.constants {
             unsafe {
-                let ty = constant.ty.llvm_type(env)?;
-                let v = core::LLVMAddGlobal(env.module, ty, c_str_ptr!(ident));
-                let val = if let Expr::Literal(lit) = &constant.val.0 {
-                    lit.llvm_literal(env)?
+                let ty = if let Ty::Pointer(ty) = &constant.ty.0 {
+                    ty.llvm_type(env)?
+                } else if let Ty::Slice(ty) = &constant.ty.0 {
+                    Type(Ty::Array(ty.clone(), 0), constant.ty.1.clone()).llvm_type(env)?
                 } else {
-                    return Err(ParseET::CompilationError("constant can only be initialized by literal".to_string()).at(constant.val.1.clone()).when("compiling constant"))
+                    return Err(ParseET::CompilationError(format!("constant can only be pointer, found {}", constant.print())).at(constant.val.1.clone()).when("compiling constant"))
                 };
-                validate_type_eq(&constant.ty, &val.ast_type)?;
+                let v = core::LLVMAddGlobal(env.module, ty, c_str_ptr!(ident));
+                let val = if let Expr::Point(box Expression(Expr::Literal(lit), _)) = &constant.val.0 {
+                    let Variable {
+                        ast_type,
+                        llvm_type,
+                        llvm_value
+                    } = lit.llvm_literal(env)?;
+                    let loc = ast_type.1.clone();
+                    Variable {
+                        ast_type: Type(Ty::Pointer(Box::new(ast_type)), loc),
+                        llvm_type,
+                        llvm_value,
+                    }
+                } else {
+                    return Err(ParseET::CompilationError(format!("constant can only be initialized by literal pointer, found {}", constant.print())).at(constant.val.1.clone()).when("compiling constant"))
+                };
+                val.ast_type.satisfies_or_err(&constant.ty)?;
                 core::LLVMSetInitializer(v, val.llvm_value);
                 env.globals.insert(ident.to_string(), Variable {
                     ast_type: constant.ty.clone(),
@@ -67,14 +81,12 @@ impl Module {
                 b
             };
             let mut ret = func.body.as_ref().unwrap().build(env, None, true)?;
-            println!("{}", ret.ast_type.print());
-            validate_type_eq(&func.ret, &ret.ast_type)?;
+            ret.ast_type.satisfies_or_err(&func.ret)?;
             unsafe {
                 core::LLVMBuildRetVoid(env.builder);
                 core::LLVMDisposeBuilder(env.builder);
             }
             env.builder = entry_builder;
-            println!("3")
         }
         Ok(())
     }
@@ -99,8 +111,16 @@ impl Expression {
                 Expr::Block(block) => block.build(env, None, false)?,
                 Expr::FuncCall(fun, args) => {
                     let var = env.get_var(&fun.0.first().unwrap().0, Some(&fun.1))?;
-                    if let Ty::Signature(_args, ret) = var.ast_type.0 {
-                        let mut args = args.iter().map(|a| a.build(env, None).map(|v| v.llvm_value)).collect::<Result<Vec<_>, _>>()?;
+                    if let Ty::Signature(arg_types, ret) = var.ast_type.0 {
+                        if arg_types.len() != args.len() {
+                            return Err(ParseET::CompilationError(format!("expected {} args, got {}", arg_types.len(), args.len())).at(self.1.clone()).when("compiling function call"))
+                        }
+                        let mut args = args.iter().zip(arg_types)
+                            .map(|(expr, t)| expr.build(env, None).map(|v| {
+                                v.ast_type.satisfies_or_err(&t)?;
+                                Ok(v.llvm_value)
+                            }).flatten())
+                            .collect::<Result<Vec<_>, _>>()?;
                         let ty = ret.llvm_type(env)?;
                         let out = core::LLVMBuildCall2(env.builder, var.llvm_type, var.llvm_value, args.as_mut_ptr(), args.len() as c_uint, c_str_ptr!(ret_name.unwrap_or(String::new())));
                         Variable {
@@ -151,8 +171,7 @@ impl Block {
 
 impl Type {
     pub(crate) fn llvm_type(&self, env: &mut LLVMModGenEnv) -> Result<prelude::LLVMTypeRef, ParseError> {
-        println!("{}", self.print());
-        let r = unsafe {
+        unsafe {
             Ok(match &self.0 {
                 Ty::Single(generics, base_type) => {
                     if generics.len() > 0 || base_type.0.len() > 1 {
@@ -176,8 +195,10 @@ impl Type {
                         _ => unimplemented!("primitive type not figured out yet, come back tomorrow")
                     }
                 }
+                Ty::RawPointer => core::LLVMPointerType(core::LLVMVoidType(), 0), // TODO: replace 0 with adapting value
                 Ty::Pointer(ty) => core::LLVMPointerType(ty.llvm_type(env)?, 0), // TODO: replace 0 with adapting value
                 Ty::Array(ty, usize) => core::LLVMArrayType(ty.llvm_type(env)?, *usize as c_uint),
+                Ty::Slice(ty) => Type(Ty::Array(ty.clone(), 0), self.1.clone()).llvm_type(env)?,
                 Ty::Tuple(tys) => {
                     if tys.len() > 0 {
                         *tys.iter().map(|ty|ty.llvm_type(env)).collect::<Result<Vec<_>, ParseError>>()?.as_mut_ptr()
@@ -187,9 +208,7 @@ impl Type {
                 },
                 Ty::Signature(_, _) => unimplemented!("signature types to llvm type not implemented yet")
             })
-        };
-        println!("!");
-        r
+        }
     }
 }
 
@@ -210,7 +229,7 @@ impl AstLiteral {
                         Type(Ty::Single(vec![], Item::new(&vec!["u8"], self.1.clone())), self.1.clone()),
                         s.len() + 1), self.1.clone()), env)?.llvm_value,
                 Literal::Char(c) => core::LLVMConstInt(core::LLVMInt8Type(), *c as u8 as c_ulonglong, false as LLVMBool),
-                Literal::Number(NumLit::Integer(num), Some(n)) => {
+                Literal::Number(NumLit::Integer(num), _) => {
                     core::LLVMConstInt( self.get_type()?.llvm_type(env)?, *num as u8 as c_ulonglong, false as LLVMBool)
                 }
                 Literal::Bool(b) => core::LLVMConstInt(core::LLVMInt1Type(), *b as c_ulonglong, false as LLVMBool),
@@ -224,10 +243,29 @@ impl AstLiteral {
     }
 }
 
-fn validate_type_eq(a: &Type, b: &Type) -> Result<(), ParseError> {
-    if a == b {
-        Ok(())
-    } else {
-        Err(ParseET::TypeError(a.print(), b.print()).ats(vec![a.1.clone(), b.1.clone()]))
+impl Type {
+    pub(crate) fn satisfies(&self, other: &Type) -> bool {
+        if self == other { true } else {
+            match (&self.0, &other.0) {
+                (Ty::Single(_, t1), Ty::Single(_, t2)) => t1 == t2,
+                (Ty::RawPointer, Ty::RawPointer) => true,
+                (Ty::Pointer(t1), Ty::Pointer(t2)) => t1.satisfies(t2),
+                    (Ty::Pointer(_t), Ty::RawPointer) => true, // pointer satisfies raw pointer
+                (Ty::Array(t1, l1), Ty::Array(t2, l2)) => t1.satisfies(t2) && l1 == l2,
+                    (Ty::Array(t1, _l1), Ty::Slice(t2)) => t1.satisfies(t2), // array satisfies slice
+                (Ty::Slice(t1), Ty::Slice(t2)) => t1.satisfies(t2),
+                (Ty::Tuple(t1), Ty::Tuple(t2)) => t1.iter().zip(t2).all(|(t1, t2)|t1.satisfies(t2)),
+                (Ty::Signature(a1, r1), Ty::Signature(a2, r2)) => a1.iter().zip(a2).all(|(t1, t2)|t1.satisfies(t2)) && r1.satisfies(r2),
+                _ => false
+            }
+        }
+    }
+
+    pub(crate) fn satisfies_or_err(&self, other: &Type) -> Result<(), ParseError> {
+        if self.satisfies(other) {
+            Ok(())
+        } else {
+            Err(ParseET::TypeError(other.print(), self.print()).ats(vec![self.1.clone(), other.1.clone()]))
+        }
     }
 }

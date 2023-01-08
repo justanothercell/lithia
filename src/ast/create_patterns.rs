@@ -26,18 +26,29 @@ pub(crate) fn build_patterns() -> Patterns {
 
     let (type_pat, type_finalizer) = Latent::new();
     type_finalizer.finalize(Pattern::named("type", Match(vec![
-        (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'), type_pat.clone()).map(|(_, ty), _| Ty::Pointer(Box::new(ty))).pat()),
-        (Succeed(ExpectParticle('[').pat()).pat(), (ExpectParticle('['), type_pat.clone(), ExpectParticle(';'), GetLiteral, ExpectParticle(']')).map_res(|(_, ty, _, count, _), _| {
-            if let AstLiteral(Literal::Number(NumLit::Integer(c), th), loc) = count.clone() {
-                if th.as_ref().map(|t| t == &NumLitTy::UPtr).unwrap_or(true) {
-                    Ok(Ty::Array(Box::new(ty), c as usize))
+        (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'),
+                                                    Optional(type_pat.clone(), type_pat.clone()))
+            .map(|(_, ty), _| ty.map(|ty| Ty::Pointer(Box::new(ty))).unwrap_or(Ty::RawPointer)).pat()),
+        (Succeed(ExpectParticle('[').pat()).pat(), (ExpectParticle('['), type_pat.clone(),
+                                                    Optional(
+                                                        ExpectParticle(';').pat(),
+                                                        (ExpectParticle(';'), GetLiteral).pat()),
+                                                    ExpectParticle(']'))
+            .map_res(|(_, ty, maybe_count, _), _| {
+                if let Some((_, count) ) = maybe_count {
+                    if let AstLiteral(Literal::Number(NumLit::Integer(c), th), loc) = count.clone() {
+                        if th.as_ref().map(|t| t == &NumLitTy::UPtr).unwrap_or(true) {
+                            Ok(Ty::Array(Box::new(ty), c as usize))
+                        } else {
+                            Err(ParseET::LiteralError(count.0, format!("expected uptr, found {}", th.unwrap())).at(loc).when("parsing array type"))
+                        }
+                    } else {
+                        Err(ParseET::LiteralError(count.0, "expected uptr".to_string()).at(count.1).when("parsing array type"))
+                    }
                 } else {
-                    Err(ParseET::LiteralError(count.0, format!("expected uptr, found {}", th.unwrap())).at(loc).when("parsing array type"))
+                    Ok(Ty::Slice(Box::new(ty)))
                 }
-            } else {
-                Err(ParseET::LiteralError(count.0, "expected uptr".to_string()).at(count.1).when("parsing array type"))
-            }
-        }).pat()),
+            }).pat()),
         (Succeed(item.clone()).pat(), item.clone().map(|item, loc| Ty::Single(vec![], item)).pat()),
     ]), |ty, loc| Type(ty, loc)));
 

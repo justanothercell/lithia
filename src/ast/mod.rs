@@ -91,8 +91,10 @@ pub(crate) struct Type(pub(crate) Ty, pub(crate) Span);
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Ty {
     Single(Vec<Type>, Item),
+    RawPointer,
     Pointer(Box<Type>),
     Array(Box<Type>, usize),
+    Slice(Box<Type>),
     Tuple(Vec<Type>),
     Signature(Vec<Type>, Box<Type>)
 }
