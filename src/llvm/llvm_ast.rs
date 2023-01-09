@@ -165,8 +165,10 @@ impl Expression {
                         return Err(ParseET::TypeError("function".to_string(), format!("{:?}", var.ast_type.0)).at(self.1.clone()).when("compiling expression"))
                     }
                 },
-                Expr::VarCreate(_, _, _, _) => {
-                    
+                Expr::VarCreate(name, mutable, ty, expr) => {
+                    let v = expr.build(env, Some(name.0.clone()))?;
+                    env.stack.last_mut().unwrap().0.insert(name.0.clone(), v.clone());
+                    v
                 }
                 //Expr::BinaryOp(_, _, _) => {}
                 //Expr::UnaryOp(_, _) => {}

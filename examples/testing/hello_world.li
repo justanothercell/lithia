@@ -1,7 +1,16 @@
 //#[extern("C")]
 //fn puts(msg: &) -> i32;
 
+const FOO: &[u8;8] = &"message";
+
 fn main(){
-    let msg = &"message";
-    puts(msg);
+    let msg = "message";
+    let msg2 = msg;
+    f(msg);
+    f(msg2);
+    f(*FOO);
+}
+
+fn f(msg: [u8; 8]) {
+    puts(&msg);
 }
