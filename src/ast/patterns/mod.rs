@@ -44,7 +44,7 @@ impl<T: Consumer, Out> Consumer for Pattern<T, Out> {
         if out.is_err() && self.name.is_some() {
             return Err(unsafe {out.unwrap_err_unchecked()}.when(format!("parsing {}", self.name.clone().unwrap())));
         }
-        start.combine(iter.here());
+        start.combine(iter.peekn(-1)?.loc);
         Ok((self.mapper)(out?, start))
     }
 }

@@ -1,5 +1,5 @@
 //#[extern("C")]
-//fn puts(&) -> i32;
+fn puts(msg: &) -> i32;
 
 const WELCOME: &[u8] = &"Hello, worlds!";
 const INT: &i8 = &127i8;
@@ -14,12 +14,9 @@ fn main(){
 
     puts(WELCOME);
     puts(&WELCOME);
-    puts_puts(&"double!")
+    puts_ref(&&"ref!!!")
 }
 
-fn puts_puts(msg: &[u8]){
-    puts(msg)
-    puts(msg)
+fn puts_ref(msg: &&[u8]){
+    puts(*msg);
 }
-
-

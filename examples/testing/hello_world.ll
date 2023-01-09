@@ -32,5 +32,17 @@ entry:
   %6 = alloca [0 x i8], align 1
   store ptr @WELCOME, ptr %6, align 8
   %7 = call i32 @puts(ptr %6)
+  %8 = alloca [7 x i8], align 1
+  store [7 x i8] c"ref!!!\00", ptr %8, align 1
+  %9 = alloca ptr, align 8
+  store ptr %8, ptr %9, align 8
+  call void @puts_ref(ptr %9)
+  ret void
+}
+
+define void @puts_ref(ptr %0) {
+entry:
+  %1 = load ptr, ptr %0, align 8
+  %2 = call i32 @puts(ptr %1)
   ret void
 }

@@ -70,6 +70,7 @@ impl CodePrinter for Expression {
         match &self.0 {
             Expr::FuncCall(ident, args) => format!("{}({})", ident.print(), args.iter().map(|e|e.print()).collect::<Vec<_>>().join(", ")),
             Expr::Point(expr) => format!("&{}", expr.print()),
+            Expr::Deref(expr) => format!("*{}", expr.print()),
             Expr::Literal(lit) => lit.print(),
             Expr::Variable(var) => var.print(),
             Expr::UnaryOp(op, box expr) => format!("{}{}", op.print(), expr.print()),

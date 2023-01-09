@@ -1,6 +1,6 @@
 use std::ffi::{c_uint, c_ulonglong};
 use llvm_sys::{prelude::LLVMBool, prelude, core};
-use llvm_sys::prelude::LLVMValueRef;
+use llvm_sys::prelude::{LLVMTypeRef, LLVMValueRef};
 use crate::ast::{AstLiteral, Block, Expr, Expression, Ident, Item, Module, Ty, Type};
 use crate::{c_str_ptr};
 use crate::ast::code_printer::CodePrinter;
@@ -80,7 +80,24 @@ impl Module {
                 core::LLVMPositionBuilderAtEnd(b, entry_block);
                 b
             };
-            let mut ret = func.body.as_ref().unwrap().build(env, None, true)?;
+            env.push_stack(true);
+            func.args.iter()
+                .map(|(ident, ty)|(ident, ty, ty.llvm_type(env)))
+                .collect::<Vec<(&Ident, &Type, Result<LLVMTypeRef, ParseError>)>>()
+                .into_iter()
+                .enumerate()
+                .map(|(i, (ident, ty, llvm_ty))| {
+                    let _ = env.stack.last_mut().unwrap().0.insert(ident.0.clone(),
+                        Variable {
+                            ast_type: ty.clone(),
+                            llvm_type: llvm_ty?,
+                            llvm_value: unsafe {core::LLVMGetParam(function, i as c_uint)},
+                        });
+                    Ok(())
+                })
+                .collect::<Result<Vec<()>, ParseError>>()?;
+            let mut ret = func.body.as_ref().unwrap().build(env, None)?;
+            env.pop_stack();
             ret.ast_type.satisfies_or_err(&func.ret)?;
             unsafe {
                 core::LLVMBuildRetVoid(env.builder);
@@ -98,17 +115,33 @@ impl Expression {
             Ok(match &self.0 {
                 Expr::Literal(lit) => lit.llvm_literal(env)?,
                 Expr::Point(expr) => {
-                    let v = expr.build(env, ret_name)?;
-                    let ptr = core::LLVMBuildAlloca(env.builder, v.llvm_type, c_str_ptr!(""));
+                    let v = expr.build(env, None)?;
+                    let ptr = core::LLVMBuildAlloca(env.builder, v.llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new())));
                     core::LLVMBuildStore(env.builder, v.llvm_value, ptr);
                     Variable {
                         ast_type: Type(Ty::Pointer(Box::new(v.ast_type)),self.1.clone()),
                         llvm_type: core::LLVMPointerType(v.llvm_type, 0), // TODO: replace 0
                         llvm_value: ptr,
                     }
+                },
+                Expr::Deref(expr) => {
+                    let v = expr.build(env, None)?;
+                    if let Ty::RawPointer = &v.ast_type.0 {
+                        return Err(ParseET::TypeError("pointer".to_string(), "raw pointer".to_string()).at(self.1.clone()).when("compiling deref"))
+                    }
+                    let inner_ty = if let Ty::Pointer(box ty) = &v.ast_type.0 { ty } else {
+                        return Err(ParseET::TypeError("pointer".to_string(), v.ast_type.print()).at(self.1.clone()).when("compiling deref"))
+                    };
+                    let llvm_ty = inner_ty.llvm_type(env)?;
+                    let deref = core::LLVMBuildLoad2(env.builder, llvm_ty, v.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
+                    Variable {
+                        ast_type: inner_ty.clone(),
+                        llvm_type: llvm_ty, // TODO: replace 0
+                        llvm_value: deref,
+                    }
                 }
                 Expr::Variable(var) => env.get_var(&var.0, Some(&var.1))?,
-                Expr::Block(block) => block.build(env, None, false)?,
+                Expr::Block(block) => block.build(env, ret_name)?,
                 Expr::FuncCall(fun, args) => {
                     let var = env.get_var(&fun.0.first().unwrap().0, Some(&fun.1))?;
                     if let Ty::Signature(arg_types, ret) = var.ast_type.0 {
@@ -143,8 +176,7 @@ impl Expression {
 }
 
 impl Block {
-    pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>, opaque: bool) -> Result<Variable, ParseError> {
-        env.push_stack(opaque);
+    pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<Variable, ParseError> {
         let mut ret = None;
         for (i, stmt) in self.0.iter().enumerate() {
             let r = stmt.0.build(env, None)?;
@@ -160,7 +192,6 @@ impl Block {
                 break
             }
         }
-        env.pop_stack();
         unsafe {Ok(ret.unwrap_or_else(||Variable {
             ast_type: Type(Ty::Tuple(vec![]), self.1.clone()),
             llvm_type: core::LLVMVoidType(),

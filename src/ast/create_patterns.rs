@@ -66,6 +66,7 @@ pub(crate) fn build_patterns() -> Patterns {
             Match(vec![
                 (Succeed((item.clone(), ExpectParticle('(')).pat()).pat(), function_call.clone()),
                 (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'), expression.clone()).map(|(_, expr), loc| Expr::Point(Box::new(expr))).pat()),
+                (Succeed(ExpectParticle('*').pat()).pat(), (ExpectParticle('*'), expression.clone()).map(|(_, expr), loc| Expr::Deref(Box::new(expr))).pat()),
                 (Succeed(GetIdent.pat()).pat(), GetIdent.map(|ident, loc| Expr::Variable(ident)).pat()),
                 (Succeed(GetLiteral.pat()).pat(), GetLiteral.map(|lit, loc| Expr::Literal(lit)).pat())
             ]), |expr, loc| Expression(expr, loc)));

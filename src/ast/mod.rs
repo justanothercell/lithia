@@ -28,6 +28,7 @@ pub(crate) struct Expression(pub(crate) Expr, pub(crate) Span);
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Expr {
     Point(Box<Expression>),
+    Deref(Box<Expression>),
     Literal(AstLiteral),
     Variable(Ident),
     Block(Block),
