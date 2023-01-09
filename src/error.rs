@@ -62,7 +62,7 @@ impl ParseET {
     pub(crate) fn ats(self, locs: Vec<Span>) -> ParseError {
         ParseError {
             et: self,
-            locs: locs,
+            locs,
             context: vec![]
         }
     }
@@ -71,43 +71,43 @@ impl ParseET {
 impl Display for ParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}{}",
-               match &self.et {
-                   ParseET::EOF => format!("Input Error:\n    reached end of file"),
-                   ParseET::EmptyInput => format!("Input Error:\n    input was empty"),
-                   ParseET::IOError(e) => format!("IO Error:\n    {}", e),
-                   ParseET::TokenizationError(e) => format!("Tokenization Error:\n    {}", e),
-                   ParseET::LiteralError(lit, e) => format!("{} literal Error:\n    {}", match lit {
-                       Literal::String(_) => "String",
-                       Literal::Char(_) => "Char",
-                       Literal::Number(NumLit::Integer(_), _) => "Integer",
-                       Literal::Number(NumLit::Float(_), _) => "Float",
-                       Literal::Bool(_) => "Float",
-                       Literal::Array(..) => "Array"
-                   }, e),
-                   ParseET::ParsingError(e) => format!("Parsing Error:\n    {}", e),
-                   ParseET::CompilationError(e) => format!("Compilation Error:\n    {}", e),
-                   ParseET::AlreadyDefinedError(what, name) =>
-                       format!("Multiple definitions Error:\n    {} {} was already defined",
-                       what, name),
-                   ParseET::VariableNotFound(ident) => format!("Name Error:\n    could not find variable {ident}"),
-                   ParseET::TypeError(expected, found) => format!("Type Error:\n    expected {expected} found {found}"),
-               },
-               if self.context.len() > 0 {
-                   format!("\n    while {}", self.context.join("\n    while "))
-               } else {
-                   String::new()
-               },
-               {
-                   let mut locs = String::new();
-                   for loc in &self.locs {
-                       locs.push_str(&format!("\n{:?}: {:?}\n{}",
-                                              loc.source,
-                                              loc,
-                                              loc.render_span_code(2)
-                       ))
-                   }
-                   locs
+           match &self.et {
+               ParseET::EOF => format!("Input Error:\n    reached end of file"),
+               ParseET::EmptyInput => format!("Input Error:\n    input was empty"),
+               ParseET::IOError(e) => format!("IO Error:\n    {}", e),
+               ParseET::TokenizationError(e) => format!("Tokenization Error:\n    {}", e),
+               ParseET::LiteralError(lit, e) => format!("{} literal Error:\n    {}", match lit {
+                   Literal::String(_) => "String",
+                   Literal::Char(_) => "Char",
+                   Literal::Number(NumLit::Integer(_), _) => "Integer",
+                   Literal::Number(NumLit::Float(_), _) => "Float",
+                   Literal::Bool(_) => "Float",
+                   Literal::Array(..) => "Array"
+               }, e),
+               ParseET::ParsingError(e) => format!("Parsing Error:\n    {}", e),
+               ParseET::CompilationError(e) => format!("Compilation Error:\n    {}", e),
+               ParseET::AlreadyDefinedError(what, name) =>
+                   format!("Multiple definitions Error:\n    {} {} was already defined",
+                   what, name),
+               ParseET::VariableNotFound(ident) => format!("Name Error:\n    could not find variable {ident}"),
+               ParseET::TypeError(expected, found) => format!("Type Error:\n    expected {expected} found {found}"),
+           },
+           if self.context.len() > 0 {
+               format!("\n    while {}", self.context.join("\n    while "))
+           } else {
+               String::new()
+           },
+           {
+               let mut locs = String::new();
+               for loc in &self.locs {
+                   locs.push_str(&format!("\n{:?}: {:?}\n{}",
+                                          loc.source,
+                                          loc,
+                                          loc.render_span_code(2)
+                   ))
                }
+               locs
+           }
         )
     }
 }

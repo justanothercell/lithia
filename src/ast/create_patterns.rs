@@ -5,7 +5,7 @@ use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk, Optional};
 use crate::ast::patterns::dynamic::{Latent, Mapping};
 use crate::ast::patterns::simple::{ExpectIdent, ExpectParticle, ExpectParticleExact, GetIdent, GetLiteral, GetNext, GetParticle};
-use crate::error::{ParseError, ParseET};
+use crate::error::{ParseET};
 use crate::source::span::Span;
 use crate::tokens::{Literal, NumLit, NumLitTy};
 
@@ -53,17 +53,29 @@ pub(crate) fn build_patterns() -> Patterns {
     ]), |ty, loc| Type(ty, loc)));
 
     let (expression, expression_finalizer) = Latent::new();
+    let let_create = Pattern::named("variable creation", (
+        ExpectIdent("let".to_string()),
+        GetIdent,
+        ExpectParticle('='),
+        expression.clone()
+    ), |(_, name, _, expr), loc| Expr::VarCreate(name, false, None, Box::new(expr)));
     let function_call = Pattern::named("function call", (
         item.clone(),
         ExpectParticle('('),
+        Optional(expression.clone(), expression.clone()),
         While(
             Fail(ExpectParticle(')').pat()).pat(),
-            expression.clone()
+
+            (ExpectParticle(','), expression.clone()).map(|(_, expr), _|expr).pat()
         ),
         ExpectParticle(')'),
-    ), |(item, _, args, _), loc| Expr::FuncCall(item, args));
+    ), |(item, _, arg0, mut args, _), loc| {
+        arg0.map(|arg0| args.insert(0, arg0));
+        Expr::FuncCall(item, args)
+    });
     expression_finalizer.finalize(Pattern::named("expression",
             Match(vec![
+                (Succeed(ExpectIdent("let".to_string()).pat()).pat(), let_create.clone()),
                 (Succeed((item.clone(), ExpectParticle('(')).pat()).pat(), function_call.clone()),
                 (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'), expression.clone()).map(|(_, expr), loc| Expr::Point(Box::new(expr))).pat()),
                 (Succeed(ExpectParticle('*').pat()).pat(), (ExpectParticle('*'), expression.clone()).map(|(_, expr), loc| Expr::Deref(Box::new(expr))).pat()),
@@ -83,14 +95,20 @@ pub(crate) fn build_patterns() -> Patterns {
             ExpectIdent("fn".to_string()),
             GetIdent,
             ExpectParticle('('),
-            While(Fail(ExpectParticle(')').pat()).pat(), (GetIdent, ExpectParticle(':'), type_pat.clone()).map(|(i, _, t), _| (i, t)).pat()),
+            Optional(GetIdent.pat(), (GetIdent, ExpectParticle(':'), type_pat.clone()).map(|(i, _, t), _| (i, t)).pat()),
+            While(
+                Fail(ExpectParticle(')').pat()).pat(),
+
+                (ExpectParticle(','), GetIdent, ExpectParticle(':'), type_pat.clone()).map(|(_, i, _, t), _| (i, t)).pat()
+            ),
             ExpectParticle(')').map(|_, loc|loc),
             Optional(ExpectParticle('-').pat(), (ExpectParticle('-'), ExpectParticleExact('>', true), type_pat.clone()).map(|(_, _, ty), _|ty).pat()),
             Match(vec![
                 (Succeed(ExpectParticle('{').pat()).pat(), (ExpectParticle('{'), block.clone(), ExpectParticle('}')).map(|(_, block, _), _| Some(block)).pat()),
                 (Succeed(ExpectParticle(';').pat()).pat(), ExpectParticle(';').map(|_, _| None).pat())
             ])
-    ), |(_, name, _, args, sig_end_loc, ret_ty, body), loc| {
+    ), |(_, name, _, arg0, mut args, sig_end_loc, ret_ty, body), loc| {
+        arg0.map(|arg0| args.insert(0, arg0));
         let mut signature_loc = name.1.clone();
         signature_loc.combine(sig_end_loc);
         Func {

@@ -1,22 +1,7 @@
 //#[extern("C")]
-fn puts(msg: &) -> i32;
-
-const WELCOME: &[u8] = &"Hello, worlds!";
-const INT: &i8 = &127i8;
-
-fn wants_int_ptr(foo: &i8){}
+//fn puts(msg: &) -> i32;
 
 fn main(){
-    wants_int_ptr(INT);
-
-    puts(&"inline welcome");
-    puts(&&"inline welcome two");
-
-    puts(WELCOME);
-    puts(&WELCOME);
-    puts_ref(&&"ref!!!")
-}
-
-fn puts_ref(msg: &&[u8]){
-    puts(*msg);
+    let msg = &"message";
+    puts(msg);
 }

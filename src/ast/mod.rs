@@ -35,8 +35,8 @@ pub(crate) enum Expr {
     FuncCall(Item, Vec<Expression>),
     BinaryOp(Operator, Box<Expression>, Box<Expression>),
     UnaryOp(Operator, Box<Expression>),
-    VarCreate(Item, bool, Option<Type>, Box<Expression>),
-    VarAssign(Item, Option<Operator>, Box<Expression>),
+    VarCreate(Ident, bool, Option<Type>, Box<Expression>),
+    VarAssign(Ident, Option<Operator>, Box<Expression>),
     Return(Option<Box<Expression>>),
 }
 
