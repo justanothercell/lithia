@@ -5,12 +5,9 @@ const FOO: &[u8;8] = &"message";
 
 fn main(){
     let msg = "message";
-    let msg2 = msg;
-    f(msg);
-    f(msg2);
-    f(*FOO);
-}
-
-fn f(msg: [u8; 8]) {
+    let msg2 = &msg;
+    let msg3 = &&msg;
     puts(&msg);
+    puts(*msg3);
+    puts(*&****&&&&FOO);
 }

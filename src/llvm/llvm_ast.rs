@@ -49,7 +49,7 @@ impl Module {
                 } else {
                     return Err(ParseET::CompilationError(format!("constant can only be initialized by literal pointer, found {}", constant.print())).at(constant.val.1.clone()).when("compiling constant"))
                 };
-                val.ast_type.satisfies_or_err(&constant.ty)?;
+                val.ast_type.satisfies_or_err(&constant.ty, &val.ast_type.1)?;
                 core::LLVMSetInitializer(v, val.llvm_value);
                 env.globals.insert(ident.to_string(), Variable {
                     ast_type: constant.ty.clone(),
@@ -98,7 +98,7 @@ impl Module {
                 .collect::<Result<Vec<()>, ParseError>>()?;
             let mut ret = func.body.as_ref().unwrap().build(env, None)?;
             env.pop_stack();
-            ret.ast_type.satisfies_or_err(&func.ret)?;
+            ret.ast_type.satisfies_or_err(&func.ret, &ret.ast_type.1)?;
             unsafe {
                 core::LLVMBuildRetVoid(env.builder);
                 core::LLVMDisposeBuilder(env.builder);
@@ -150,7 +150,7 @@ impl Expression {
                         }
                         let mut args = args.iter().zip(arg_types)
                             .map(|(expr, t)| expr.build(env, None).map(|v| {
-                                v.ast_type.satisfies_or_err(&t)?;
+                                v.ast_type.satisfies_or_err(&t, &expr.1)?;
                                 Ok(v.llvm_value)
                             }).flatten())
                             .collect::<Result<Vec<_>, _>>()?;
@@ -296,11 +296,11 @@ impl Type {
         }
     }
 
-    pub(crate) fn satisfies_or_err(&self, other: &Type) -> Result<(), ParseError> {
+    pub(crate) fn satisfies_or_err(&self, other: &Type, at: &Span) -> Result<(), ParseError> {
         if self.satisfies(other) {
             Ok(())
         } else {
-            Err(ParseET::TypeError(other.print(), self.print()).ats(vec![self.1.clone(), other.1.clone()]))
+            Err(ParseET::TypeError(other.print(), self.print()).ats(vec![self.1.clone(), other.1.clone(), at.clone()]))
         }
     }
 }
