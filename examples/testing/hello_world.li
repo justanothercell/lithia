@@ -11,5 +11,5 @@ const FOO: &[u8;8] = &"message";
 
 fn main(){
     #[unsafe]
-    printf(&"hello %d", 10u8);
+    printf(&"hello %b", 0b10u8);
 }

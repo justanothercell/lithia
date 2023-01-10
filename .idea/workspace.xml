@@ -21,11 +21,6 @@
       <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.exe" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.exe" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.li" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.li" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.ll" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.ll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast/code_printer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/code_printer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast/create_patterns.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/create_patterns.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/error.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -143,7 +138,7 @@
       <workItem from="1673260670013" duration="3000000" />
       <workItem from="1673290696251" duration="4004000" />
       <workItem from="1673332862766" duration="2218000" />
-      <workItem from="1673361042549" duration="11519000" />
+      <workItem from="1673361042549" duration="12173000" />
     </task>
     <servers />
   </component>
