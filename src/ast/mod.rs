@@ -21,18 +21,19 @@ impl Item{
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Flag(pub(crate) Ident, pub(crate) Vec<FlagValue>);
+pub(crate) struct Tag(pub(crate) Ident, pub(crate) Vec<TagValue>, pub(crate) Span);
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum  FLagValue{
+pub(crate) enum TagValue {
     Lit(AstLiteral),
-    Ident(Ident)
+    Ident(Ident),
+    Tag(Box<Tag>)
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct AstLiteral(pub(crate) Literal, pub(crate) Span);
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Expression(pub(crate) Expr, pub(crate) Span);
+pub(crate) struct Expression(pub(crate) HashMap<String, Tag>, pub(crate) Expr, pub(crate) Span);
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Expr {
     Point(Box<Expression>),
@@ -80,6 +81,7 @@ pub(crate) struct Block(pub(crate) Vec<Statement>, pub(crate) Span);
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Func {
+    pub(crate) tags: HashMap<String, Tag>,
     pub(crate) name: Ident,
     pub(crate) args: Vec<(Ident, Type)>,
     pub(crate) ret: Type,

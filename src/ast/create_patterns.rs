@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const, AstLiteral, FLagValue};
+use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const, AstLiteral, TagValue, Tag};
 use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk, Optional};
 use crate::ast::patterns::dynamic::{Latent, Mapping};
@@ -51,20 +51,35 @@ pub(crate) fn build_patterns() -> Patterns {
             }).pat()),
         (Succeed(item.clone()).pat(), item.clone().map(|item, loc| Ty::Single(vec![], item)).pat()),
     ]), |ty, loc| Type(ty, loc)));
-    let flags_arg = Pattern::named("flag argument", Match(vec![
-        (GetIdent.pat(), GetIdent.map(|id, _| FLagValue::Ident(id)).pat()),
-        (GetLiteral.pat(), GetLiteral.map(|id, _| FLagValue::Lit(id)).pat())
-    ]), |v, _|v);
-    let flag = Pattern::named("flag", (
-        ExpectParticle('#'),
-        ExpectParticle('('),
-        Optional(GetIdent.pat(), flags_arg.clone()),
-        While(
+    let (tag_args, tag_arg_finalizer) = Latent::new();
+    let flag = Pattern::inline((
+                                   GetIdent,
+                                   ExpectParticle('('),
+                                   Optional(Fail(ExpectParticle(')').pat()).pat(), tag_args.clone()),
+                                   While(
             Fail(ExpectParticle(')').pat()).pat(),
-            flags_arg.clone()
+            (ExpectParticle(','), tag_args.clone()).map(|(_, f), _|f).pat()
         ),
-        ExpectParticle(')')
-    ), ||)
+                                   ExpectParticle(')')
+    ), |(name, _, arg0, mut args, _), loc|{
+        arg0.map(|arg0| args.insert(0, arg0));
+        Tag(name, args, loc)
+    });
+    tag_arg_finalizer.finalize(Pattern::named("tag arg", Match(vec![
+        (Succeed((GetIdent, ExpectParticle('(')).pat()).pat(), flag.clone().map(|f, _| TagValue::Tag(Box::new(f))).pat()),
+        (Succeed(GetIdent.pat()).pat(), GetIdent.map(|id, _| TagValue::Ident(id)).pat()),
+        (Succeed(GetLiteral.pat()).pat(), GetLiteral.map(|lit, _| TagValue::Lit(lit)).pat()),
+    ]), |v, _|v));
+    let full_tag = Pattern::named("tag", (
+        ExpectParticle('#'),
+        ExpectParticle('['),
+        flag.clone(),
+        ExpectParticle(']')
+    ), |(_, _, flag, _), _| flag);
+    let tags = Pattern::named("tags",
+                                    While(ExpectParticle('#').pat(), full_tag.clone()),
+                                    |tags, _| tags.into_iter().map(|tag| (tag
+                                                                              .0.0.clone(), tag)).collect::<HashMap<String, Tag>>());
     let (expression, expression_finalizer) = Latent::new();
     let let_create = Pattern::named("variable creation", (
         ExpectIdent("let".to_string()),
@@ -86,15 +101,16 @@ pub(crate) fn build_patterns() -> Patterns {
         arg0.map(|arg0| args.insert(0, arg0));
         Expr::FuncCall(item, args)
     });
-    expression_finalizer.finalize(Pattern::named("expression",
-            Match(vec![
-                (Succeed(ExpectIdent("let".to_string()).pat()).pat(), let_create.clone()),
-                (Succeed((item.clone(), ExpectParticle('(')).pat()).pat(), function_call.clone()),
-                (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'), expression.clone()).map(|(_, expr), loc| Expr::Point(Box::new(expr))).pat()),
-                (Succeed(ExpectParticle('*').pat()).pat(), (ExpectParticle('*'), expression.clone()).map(|(_, expr), loc| Expr::Deref(Box::new(expr))).pat()),
-                (Succeed(GetIdent.pat()).pat(), GetIdent.map(|ident, loc| Expr::Variable(ident)).pat()),
-                (Succeed(GetLiteral.pat()).pat(), GetLiteral.map(|lit, loc| Expr::Literal(lit)).pat())
-            ]), |expr, loc| Expression(expr, loc)));
+    expression_finalizer.finalize(Pattern::named("expression",(
+        tags.clone(),
+        Match(vec![
+            (Succeed(ExpectIdent("let".to_string()).pat()).pat(), let_create.clone()),
+            (Succeed((item.clone(), ExpectParticle('(')).pat()).pat(), function_call.clone()),
+            (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'), expression.clone()).map(|(_, expr), loc| Expr::Point(Box::new(expr))).pat()),
+            (Succeed(ExpectParticle('*').pat()).pat(), (ExpectParticle('*'), expression.clone()).map(|(_, expr), loc| Expr::Deref(Box::new(expr))).pat()),
+            (Succeed(GetIdent.pat()).pat(), GetIdent.map(|ident, loc| Expr::Variable(ident)).pat()),
+            (Succeed(GetLiteral.pat()).pat(), GetLiteral.map(|lit, loc| Expr::Literal(lit)).pat())
+        ])), |(tags, expr), loc| Expression(tags, expr, loc)));
     let statement = Pattern::named("statement", (
             expression.clone(),
             IsOk(ExpectParticle(';').pat())
@@ -125,6 +141,7 @@ pub(crate) fn build_patterns() -> Patterns {
         let mut signature_loc = name.1.clone();
         signature_loc.combine(sig_end_loc);
         Func {
+            tags: HashMap::new(),
             name,
             args,
             ret: ret_ty.unwrap_or(Type(Ty::Tuple(vec![]), signature_loc)),
@@ -146,17 +163,19 @@ pub(crate) fn build_patterns() -> Patterns {
     }
     let module_content = Pattern::named("module content",
         While(
-            GetNext.pat(),
-            Match(vec![
-                (Succeed(ExpectIdent("fn".to_string()).pat()).pat(), function.clone().map(|f, _| ModuleContent::Function(f)).pat()),
-                (Succeed(ExpectIdent("const".to_string()).pat()).pat(), constant.clone().map(|c, _| ModuleContent::Const(c)).pat())
-            ]).pat()
+        GetNext.pat(),
+        (tags.clone(),
+         Match(vec![
+            (Succeed(ExpectIdent("fn".to_string()).pat()).pat(), function.clone().map(|f, _| ModuleContent::Function(f)).pat()),
+            (Succeed(ExpectIdent("const".to_string()).pat()).pat(), constant.clone().map(|c, _| ModuleContent::Const(c)).pat())
+        ])).pat()
         ).map_res(|content, loc| {
             let mut functions = HashMap::new();
             let mut constants = HashMap::new();
-            for c in content.into_iter() {
+            for (tags, c) in content.into_iter() {
                 match c {
-                    ModuleContent::Function(f) => {
+                    ModuleContent::Function(mut f) => {
+                        f.tags = tags;
                         let l = f.name.1.clone();
                         if constants.contains_key(&f.name.0){
                             return Err(ParseET::AlreadyDefinedError("constant".to_string(), f.name.0).ats(vec![l, f.name.1]))
@@ -166,6 +185,9 @@ pub(crate) fn build_patterns() -> Patterns {
                         }
                     },
                     ModuleContent::Const(c) => {
+                        if tags.len() > 0 {
+                            return Err(ParseET::TagError("tags not applicable for consts".to_string()).at(c.name.1.clone()))
+                        }
                         let l = c.name.1.clone();
                         if functions.contains_key(&c.name.0){
                             return Err(ParseET::AlreadyDefinedError("function".to_string(), c.name.0).ats(vec![l, c.name.1]))

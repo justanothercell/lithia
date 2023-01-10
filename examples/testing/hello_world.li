@@ -1,5 +1,5 @@
-//#[extern("C")]
-//fn puts(msg: &) -> i32;
+#[extern("C")]
+fn puts(msg: &) -> i32;
 
 const FOO: &[u8;8] = &"message";
 

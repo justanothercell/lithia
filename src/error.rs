@@ -41,7 +41,8 @@ pub(crate) enum ParseET {
     CompilationError(String),
     AlreadyDefinedError(String, String),
     VariableNotFound(String),
-    TypeError(String, String)
+    TypeError(String, String),
+    TagError(String)
 }
 
 impl ParseET {
@@ -91,6 +92,7 @@ impl Display for ParseError {
                    what, name),
                ParseET::VariableNotFound(ident) => format!("Name Error:\n    could not find variable {ident}"),
                ParseET::TypeError(expected, found) => format!("Type Error:\n    expected {expected} found {found}"),
+               ParseET::TagError(err) => format!("Compiler Flag Error:\n    {err}"),
            },
            if self.context.len() > 0 {
                format!("\n    while {}", self.context.join("\n    while "))

@@ -1,4 +1,5 @@
-use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, Module, Op, Operator, Statement, Ty, Type};
+use std::collections::HashMap;
+use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, Module, Op, Operator, Statement, Tag, TagValue, Ty, Type};
 use crate::tokens::{Literal, NumLit};
 
 pub(crate) trait CodePrinter{
@@ -65,9 +66,32 @@ impl CodePrinter for AstLiteral {
     }
 }
 
+impl CodePrinter for HashMap<String, Tag> {
+    fn print(&self) -> String {
+        self.iter().map(|(name, tag)| format!("#[{}]", tag.print())).collect::<Vec<_>>().join("\n")
+    }
+}
+
+impl CodePrinter for Tag {
+    fn print(&self) -> String {
+        format!("{}({})", self.0.0, self.1.iter().map(|v| v.print()).collect::<Vec<_>>().join(", "))
+    }
+}
+
+impl CodePrinter for TagValue {
+    fn print(&self) -> String {
+        match self {
+            TagValue::Lit(lit) => lit.print(),
+            TagValue::Ident(ident) => ident.print(),
+            TagValue::Tag(tag) => tag.print()
+        }
+    }
+}
+
 impl CodePrinter for Expression {
     fn print(&self) -> String {
-        match &self.0 {
+        format!("{}{}", if self.0.len() > 0 { format!("{}\n", self.0.print()) } else { String::new() },
+                match &self.1 {
             Expr::FuncCall(ident, args) => format!("{}({})", ident.print(), args.iter().map(|e|e.print()).collect::<Vec<_>>().join(", ")),
             Expr::Point(expr) => format!("&{}", expr.print()),
             Expr::Deref(expr) => format!("*{}", expr.print()),
@@ -76,17 +100,17 @@ impl CodePrinter for Expression {
             Expr::UnaryOp(op, box expr) => format!("{}{}", op.print(), expr.print()),
             Expr::BinaryOp(op, box left, box right) => format!("({} {} {})", left.print(), op.print(), right.print()),
             Expr::VarCreate(ident, mutable, ty, expr) =>
-            format!("let {}{}{} = {};",
+            format!("let {}{}{} = {}",
                     if *mutable { "mut "} else {""}.to_string(),
                     ident.print(),
                     ty.as_ref().map(|t|format!(": {}", t.0.print())).unwrap_or("".to_string()),
                     expr.print()
             ),
-            Expr::VarAssign(ident, Some(op), expr) => format!("{} {}= {};", ident.print(), op.print(), expr.print()),
+            Expr::VarAssign(ident, Some(op), expr) => format!("{} {}= {}", ident.print(), op.print(), expr.print()),
             Expr::VarAssign(ident, None, expr) => format!("{} = {};", ident.print(), expr.print()),
             Expr::Block(block) => block.print(),
-            Expr::Return(expr) => match expr { Some(e) => format!("return {};", e.print()), None => format!("return;") }
-        }
+            Expr::Return(expr) => match expr { Some(e) => format!("return {}", e.print()), None => format!("return") }
+        })
     }
 }
 
@@ -114,17 +138,18 @@ impl CodePrinter for Statement {
 
 impl CodePrinter for Func {
     fn print(&self) -> String {
-        format!("fn {}({}){}{}",
-                self.name.print(),
-                self.args.iter().map(|(ident, ty)| format!("{}: {}", ident.print(), ty.print())).collect::<Vec<_>>().join(", "),
-                if self.ret.0.is_empty() {
-                    String::new()
-                } else {
-                    format!(" -> {}", self.ret.0.print())
-                },
-                if let Some(body) = &self.body {
-                    body.print()
-                } else {String::from(";")}
+        format!("{}fn {}({}){}{}",
+            if self.tags.len() > 0 { format!("{}\n", self.tags.print()) } else { String::new() },
+            self.name.print(),
+            self.args.iter().map(|(ident, ty)| format!("{}: {}", ident.print(), ty.print())).collect::<Vec<_>>().join(", "),
+            if self.ret.0.is_empty() {
+                String::new()
+            } else {
+                format!(" -> {}", self.ret.0.print())
+            },
+            if let Some(body) = &self.body {
+                body.print()
+            } else {String::from(";")}
         )
     }
 }
@@ -153,8 +178,8 @@ impl CodePrinter for Module {
 
 impl Module {
     fn print_content(&self) -> String {
-        format!("{}\n{}",
-                self.constants.values().map(|c| c.print()).collect::<Vec<_>>().join("\n"),
-                self.functions.values().map(|t| t.print()).collect::<Vec<_>>().join("\n"))
+        format!("{}\n\n{}",
+                self.constants.values().map(|c| c.print()).collect::<Vec<_>>().join("\n\n"),
+                self.functions.values().map(|t| t.print()).collect::<Vec<_>>().join("\n\n"))
     }
 }

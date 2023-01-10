@@ -1,7 +1,7 @@
 use std::ffi::{c_uint, c_ulonglong};
 use llvm_sys::{prelude::LLVMBool, prelude, core};
 use llvm_sys::prelude::{LLVMTypeRef, LLVMValueRef};
-use crate::ast::{AstLiteral, Block, Expr, Expression, Ident, Item, Module, Ty, Type};
+use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, Module, Ty, Type};
 use crate::{c_str_ptr};
 use crate::ast::code_printer::CodePrinter;
 use crate::error::{ParseError, ParseET};
@@ -11,100 +11,106 @@ use crate::tokens::{Literal, NumLit, NumLitTy};
 
 impl Module {
     pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<(), ParseError> {
-        // === manual extern ===
-        unsafe {
-            let puts_ty_param = Type(Ty::RawPointer, Span::dummy());
-            let puts_ret = Type(Ty::Single(vec![], Item::new(&vec!["i32"], Span::dummy())), Span::dummy());
-            let puts_fn_ty = core::LLVMFunctionType(puts_ret.llvm_type(env)?, [puts_ty_param.llvm_type(env)?].as_mut_ptr(), 1 as c_uint, false as LLVMBool);
-            let puts_fn = core::LLVMAddFunction(env.module, c_str_ptr!("puts"), puts_fn_ty.clone());
-            env.globals.insert("puts".to_string(), Variable {
-                ast_type: Type(Ty::Signature(vec![puts_ty_param], Box::new(puts_ret)), Span::dummy()),
-                llvm_type: puts_fn_ty,
-                llvm_value: puts_fn,
-            });
-        }
         // === global consts ===
-        for (ident, constant) in &self.constants {
-            unsafe {
-                let ty = if let Ty::Pointer(ty) = &constant.ty.0 {
-                    ty.llvm_type(env)?
-                } else if let Ty::Slice(ty) = &constant.ty.0 {
-                    Type(Ty::Array(ty.clone(), 0), constant.ty.1.clone()).llvm_type(env)?
-                } else {
-                    return Err(ParseET::CompilationError(format!("constant can only be pointer, found {}", constant.print())).at(constant.val.1.clone()).when("compiling constant"))
-                };
-                let v = core::LLVMAddGlobal(env.module, ty, c_str_ptr!(ident));
-                let val = if let Expr::Point(box Expression(Expr::Literal(lit), _)) = &constant.val.0 {
-                    let Variable {
-                        ast_type,
-                        llvm_type,
-                        llvm_value
-                    } = lit.llvm_literal(env)?;
-                    let loc = ast_type.1.clone();
-                    Variable {
-                        ast_type: Type(Ty::Pointer(Box::new(ast_type)), loc),
-                        llvm_type,
-                        llvm_value,
-                    }
-                } else {
-                    return Err(ParseET::CompilationError(format!("constant can only be initialized by literal pointer, found {}", constant.print())).at(constant.val.1.clone()).when("compiling constant"))
-                };
-                val.ast_type.satisfies_or_err(&constant.ty, &val.ast_type.1)?;
-                core::LLVMSetInitializer(v, val.llvm_value);
-                env.globals.insert(ident.to_string(), Variable {
-                    ast_type: constant.ty.clone(),
-                    llvm_type: ty,
-                    llvm_value: v,
-                });
-            }
+        for (_ident, constant) in &self.constants {
+            constant.build(env)?;
         }
         // === register functions ===
-        for (ident, func) in &self.functions {
-            let function_type = unsafe {
-                core::LLVMFunctionType(func.ret.llvm_type(env)?, func.args.clone().into_iter().map(|(i, t)|t.llvm_type(env)).collect::<Result<Vec<_>, _>>()?.as_mut_ptr(), func.args.len() as u32, false as LLVMBool)
-            };
-            let function = unsafe { core::LLVMAddFunction(env.module, c_str_ptr!(ident), function_type) };
-            env.globals.insert(ident.to_string(), Variable {
-                ast_type: Type(Ty::Signature(func.args.clone().into_iter().map(|(i, t)|t).collect(), Box::new(func.ret.clone())), func.name.1.clone()),
-                llvm_type: function_type,
-                llvm_value: function,
-            });
+        for (_ident, func) in &self.functions {
+            func.register(env)?;
         }
         // === build functions ===
-        for (ident, func) in &self.functions {
-            let function = env.get_var(ident, Some(&func.loc))?.llvm_value;
-            let entry_block = unsafe { core::LLVMAppendBasicBlock(function, c_str_ptr!("entry")) };
-            let entry_builder = env.builder;
-            env.builder = unsafe {
-                let b = core::LLVMCreateBuilder();
-                core::LLVMPositionBuilderAtEnd(b, entry_block);
-                b
-            };
-            env.push_stack(true);
-            func.args.iter()
-                .map(|(ident, ty)|(ident, ty, ty.llvm_type(env)))
-                .collect::<Vec<(&Ident, &Type, Result<LLVMTypeRef, ParseError>)>>()
-                .into_iter()
-                .enumerate()
-                .map(|(i, (ident, ty, llvm_ty))| {
-                    let _ = env.stack.last_mut().unwrap().0.insert(ident.0.clone(),
-                        Variable {
-                            ast_type: ty.clone(),
-                            llvm_type: llvm_ty?,
-                            llvm_value: unsafe {core::LLVMGetParam(function, i as c_uint)},
-                        });
-                    Ok(())
-                })
-                .collect::<Result<Vec<()>, ParseError>>()?;
-            let mut ret = func.body.as_ref().unwrap().build(env, None)?;
-            env.pop_stack();
-            ret.ast_type.satisfies_or_err(&func.ret, &ret.ast_type.1)?;
-            unsafe {
-                core::LLVMBuildRetVoid(env.builder);
-                core::LLVMDisposeBuilder(env.builder);
-            }
-            env.builder = entry_builder;
+        for (_ident, func) in &self.functions {
+            func.build(env)?;
         }
+        Ok(())
+    }
+}
+
+impl Const {
+    pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<(), ParseError> {
+        unsafe {
+            let ty = if let Ty::Pointer(ty) = &self.ty.0 {
+                ty.llvm_type(env)?
+            } else if let Ty::Slice(ty) = &self.ty.0 {
+                Type(Ty::Array(ty.clone(), 0), self.ty.1.clone()).llvm_type(env)?
+            } else {
+                return Err(ParseET::CompilationError(format!("constant can only be pointer, found {}", self.print())).at(self.val.2.clone()).when("compiling constant"))
+            };
+            let v = core::LLVMAddGlobal(env.module, ty, c_str_ptr!(self.name.0));
+            let val = if let Expr::Point(box Expression(tags, Expr::Literal(lit), _)) = &self.val.1 {
+                let Variable {
+                    ast_type,
+                    llvm_type,
+                    llvm_value
+                } = lit.llvm_literal(env)?;
+                let loc = ast_type.1.clone();
+                Variable {
+                    ast_type: Type(Ty::Pointer(Box::new(ast_type)), loc),
+                    llvm_type,
+                    llvm_value,
+                }
+            } else {
+                return Err(ParseET::CompilationError(format!("constant can only be initialized by literal pointer, found {}", self.print())).at(self.val.2.clone()).when("compiling constant"))
+            };
+            val.ast_type.satisfies_or_err(&self.ty, &val.ast_type.1)?;
+            core::LLVMSetInitializer(v, val.llvm_value);
+            env.globals.insert(self.name.0.to_string(), Variable {
+                ast_type: self.ty.clone(),
+                llvm_type: ty,
+                llvm_value: v,
+            });
+        }
+        Ok(())
+    }
+}
+
+impl Func {
+    pub(crate) fn register(&self, env: &mut LLVMModGenEnv) -> Result<(), ParseError> {
+        let function_type = unsafe {
+            core::LLVMFunctionType(self.ret.llvm_type(env)?, self.args.clone().into_iter().map(|(i, t)|t.llvm_type(env)).collect::<Result<Vec<_>, _>>()?.as_mut_ptr(), self.args.len() as u32, false as LLVMBool)
+        };
+        let function = unsafe { core::LLVMAddFunction(env.module, c_str_ptr!(self.name.0), function_type) };
+        env.globals.insert(self.name.0.to_string(), Variable {
+            ast_type: Type(Ty::Signature(self.args.clone().into_iter().map(|(i, t)|t).collect(), Box::new(self.ret.clone())), self.name.1.clone()),
+            llvm_type: function_type,
+            llvm_value: function,
+        });
+        Ok(())
+    }
+    pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<(), ParseError> {
+        let function = env.get_var(&self.name.0, Some(&self.loc))?.llvm_value;
+        let entry_block = unsafe { core::LLVMAppendBasicBlock(function, c_str_ptr!("entry")) };
+        let entry_builder = env.builder;
+        env.builder = unsafe {
+            let b = core::LLVMCreateBuilder();
+            core::LLVMPositionBuilderAtEnd(b, entry_block);
+            b
+        };
+        env.push_stack(true);
+        self.args.iter()
+            .map(|(ident, ty)|(ident, ty, ty.llvm_type(env)))
+            .collect::<Vec<(&Ident, &Type, Result<LLVMTypeRef, ParseError>)>>()
+            .into_iter()
+            .enumerate()
+            .map(|(i, (ident, ty, llvm_ty))| {
+                let _ = env.stack.last_mut().unwrap().0.insert(self.name.0.clone(),
+                                                               Variable {
+                                                                   ast_type: ty.clone(),
+                                                                   llvm_type: llvm_ty?,
+                                                                   llvm_value: unsafe {core::LLVMGetParam(function, i as c_uint)},
+                                                               });
+                Ok(())
+            })
+            .collect::<Result<Vec<()>, ParseError>>()?;
+        let mut ret = self.body.as_ref().unwrap().build(env)?;
+        env.pop_stack();
+        ret.ast_type.satisfies_or_err(&self.ret, &ret.ast_type.1)?;
+        unsafe {
+            core::LLVMBuildRetVoid(env.builder);
+            core::LLVMDisposeBuilder(env.builder);
+        }
+        env.builder = entry_builder;
         Ok(())
     }
 }
@@ -112,14 +118,14 @@ impl Module {
 impl Expression {
     pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<Variable, ParseError> {
         unsafe {
-            Ok(match &self.0 {
+            Ok(match &self.1 {
                 Expr::Literal(lit) => lit.llvm_literal(env)?,
                 Expr::Point(expr) => {
                     let v = expr.build(env, None)?;
                     let ptr = core::LLVMBuildAlloca(env.builder, v.llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new())));
                     core::LLVMBuildStore(env.builder, v.llvm_value, ptr);
                     Variable {
-                        ast_type: Type(Ty::Pointer(Box::new(v.ast_type)),self.1.clone()),
+                        ast_type: Type(Ty::Pointer(Box::new(v.ast_type)),self.2.clone()),
                         llvm_type: core::LLVMPointerType(v.llvm_type, 0), // TODO: replace 0
                         llvm_value: ptr,
                     }
@@ -127,10 +133,10 @@ impl Expression {
                 Expr::Deref(expr) => {
                     let v = expr.build(env, None)?;
                     if let Ty::RawPointer = &v.ast_type.0 {
-                        return Err(ParseET::TypeError("pointer".to_string(), "raw pointer".to_string()).at(self.1.clone()).when("compiling deref"))
+                        return Err(ParseET::TypeError("pointer".to_string(), "raw pointer".to_string()).at(self.2.clone()).when("compiling deref"))
                     }
                     let inner_ty = if let Ty::Pointer(box ty) = &v.ast_type.0 { ty } else {
-                        return Err(ParseET::TypeError("pointer".to_string(), v.ast_type.print()).at(self.1.clone()).when("compiling deref"))
+                        return Err(ParseET::TypeError("pointer".to_string(), v.ast_type.print()).at(self.2.clone()).when("compiling deref"))
                     };
                     let llvm_ty = inner_ty.llvm_type(env)?;
                     let deref = core::LLVMBuildLoad2(env.builder, llvm_ty, v.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
@@ -141,16 +147,16 @@ impl Expression {
                     }
                 }
                 Expr::Variable(var) => env.get_var(&var.0, Some(&var.1))?,
-                Expr::Block(block) => block.build(env, ret_name)?,
+                Expr::Block(block) => block.build(env)?,
                 Expr::FuncCall(fun, args) => {
                     let var = env.get_var(&fun.0.first().unwrap().0, Some(&fun.1))?;
                     if let Ty::Signature(arg_types, ret) = var.ast_type.0 {
                         if arg_types.len() != args.len() {
-                            return Err(ParseET::CompilationError(format!("expected {} args, got {}", arg_types.len(), args.len())).at(self.1.clone()).when("compiling function call"))
+                            return Err(ParseET::CompilationError(format!("expected {} args, got {}", arg_types.len(), args.len())).at(self.2.clone()).when("compiling function call"))
                         }
                         let mut args = args.iter().zip(arg_types)
                             .map(|(expr, t)| expr.build(env, None).map(|v| {
-                                v.ast_type.satisfies_or_err(&t, &expr.1)?;
+                                v.ast_type.satisfies_or_err(&t, &expr.2)?;
                                 Ok(v.llvm_value)
                             }).flatten())
                             .collect::<Result<Vec<_>, _>>()?;
@@ -162,7 +168,7 @@ impl Expression {
                             llvm_value: out,
                         }
                     } else {
-                        return Err(ParseET::TypeError("function".to_string(), format!("{:?}", var.ast_type.0)).at(self.1.clone()).when("compiling expression"))
+                        return Err(ParseET::TypeError("function".to_string(), format!("{:?}", var.ast_type.0)).at(self.2.clone()).when("compiling expression"))
                     }
                 },
                 Expr::VarCreate(name, mutable, ty, expr) => {
@@ -180,11 +186,11 @@ impl Expression {
 }
 
 impl Block {
-    pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<Variable, ParseError> {
+    pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<Variable, ParseError> {
         let mut ret = None;
         for (i, stmt) in self.0.iter().enumerate() {
             let r = stmt.0.build(env, None)?;
-            if let Expr::Return(_) = stmt.0.0 {
+            if let Expr::Return(_) = stmt.0.1 {
                 ret = Some(r);
                 break
             }
