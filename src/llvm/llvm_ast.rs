@@ -1,10 +1,11 @@
+use std::env::var;
 use std::ffi::{c_uint, c_ulonglong};
 use llvm_sys::{prelude::LLVMBool, prelude, core};
 use llvm_sys::prelude::{LLVMTypeRef, LLVMValueRef};
 use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, Module, Ty, Type};
 use crate::{c_str_ptr};
 use crate::ast::code_printer::CodePrinter;
-use crate::error::{ParseError, ParseET};
+use crate::error::{OnParseErr, ParseError, ParseET};
 use crate::llvm::{LLVMModGenEnv, Variable};
 use crate::source::span::Span;
 use crate::tokens::{Literal, NumLit, NumLitTy};
@@ -53,7 +54,7 @@ impl Const {
             } else {
                 return Err(ParseET::CompilationError(format!("constant can only be initialized by literal pointer, found {}", self.print())).at(self.val.2.clone()).when("compiling constant"))
             };
-            val.ast_type.satisfies_or_err(&self.ty, &val.ast_type.1)?;
+            val.ast_type.satisfies_or_err(&self.ty)?;
             core::LLVMSetInitializer(v, val.llvm_value);
             env.globals.insert(self.name.0.to_string(), Variable {
                 ast_type: self.ty.clone(),
@@ -68,11 +69,11 @@ impl Const {
 impl Func {
     pub(crate) fn register(&self, env: &mut LLVMModGenEnv) -> Result<(), ParseError> {
         let function_type = unsafe {
-            core::LLVMFunctionType(self.ret.llvm_type(env)?, self.args.clone().into_iter().map(|(i, t)|t.llvm_type(env)).collect::<Result<Vec<_>, _>>()?.as_mut_ptr(), self.args.len() as u32, false as LLVMBool)
+            core::LLVMFunctionType(self.ret.llvm_type(env)?, self.args.clone().into_iter().map(|(i, t)|t.llvm_type(env)).collect::<Result<Vec<_>, _>>()?.as_mut_ptr(), self.args.len() as u32, self.tags.contains_key("vararg") as LLVMBool)
         };
         let function = unsafe { core::LLVMAddFunction(env.module, c_str_ptr!(self.name.0), function_type) };
         env.globals.insert(self.name.0.to_string(), Variable {
-            ast_type: Type(Ty::Signature(self.args.clone().into_iter().map(|(i, t)|t).collect(), Box::new(self.ret.clone()), self.tags.contains_key("unsafe")), self.name.1.clone()),
+            ast_type: Type(Ty::Signature(self.args.clone().into_iter().map(|(i, t)|t).collect(), Box::new(self.ret.clone()), self.tags.contains_key("unsafe"), self.tags.contains_key("vararg")), self.name.1.clone()),
             llvm_type: function_type,
             llvm_value: function,
         });
@@ -114,9 +115,9 @@ impl Func {
                 Ok(())
             })
             .collect::<Result<Vec<()>, ParseError>>()?;
-        let mut ret = body.build(env)?;
+        let (mut ret, ret_loc) = body.build(env)?;
         env.pop_stack();
-        ret.ast_type.satisfies_or_err(&self.ret, &ret.ast_type.1)?;
+        ret.ast_type.satisfies_or_err(&self.ret).e_at_add(ret_loc)?;
         unsafe {
             core::LLVMBuildRetVoid(env.builder);
             core::LLVMDisposeBuilder(env.builder);
@@ -162,19 +163,23 @@ impl Expression {
                     }
                 }
                 Expr::Variable(var) => env.get_var(&var.0, Some(&var.1))?,
-                Expr::Block(block) => block.build(env)?,
+                Expr::Block(block) => block.build(env)?.0,
                 Expr::FuncCall(fun, args) => {
                     let var = env.get_var(&fun.0.first().unwrap().0, Some(&fun.1))?;
-                    if let Ty::Signature(arg_types, ret, is_unsafe) = var.ast_type.0 {
+                    if let Ty::Signature(arg_types, ret, is_unsafe, vararg) = var.ast_type.0 {
                         if is_unsafe && !env.stack.last().unwrap().unsafe_ctx {
                             return Err(ParseET::UnsafeError("unsafe function".to_string()).ats(vec![var.ast_type.1.clone(), fun.1.clone()]))
                         }
-                        if arg_types.len() != args.len() {
-                            return Err(ParseET::CompilationError(format!("expected {} args, got {}", arg_types.len(), args.len())).at(self.2.clone()).when("compiling function call"))
+                        if arg_types.len() != args.len() && (arg_types.len() > args.len() || !vararg) {
+                            return if vararg {
+                                Err(ParseET::CompilationError(format!("expected {} args or more, got {}", arg_types.len(), args.len())).at(self.2.clone()).when("compiling function call"))
+                            } else {
+                                Err(ParseET::CompilationError(format!("expected {} args, got {}", arg_types.len(), args.len())).at(self.2.clone()).when("compiling function call"))
+                            }
                         }
                         let mut args = args.iter().zip(arg_types)
                             .map(|(expr, t)| expr.build(env, None).map(|v| {
-                                v.ast_type.satisfies_or_err(&t, &expr.2)?;
+                                v.ast_type.satisfies_or_err(&t).e_at_add(expr.2.clone())?;
                                 Ok(v.llvm_value)
                             }).flatten())
                             .collect::<Result<Vec<_>, _>>()?;
@@ -208,27 +213,31 @@ impl Expression {
 }
 
 impl Block {
-    pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<Variable, ParseError> {
+    pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<(Variable, Span), ParseError> {
         let mut ret = None;
         for (i, stmt) in self.0.iter().enumerate() {
             let r = stmt.0.build(env, None)?;
             if let Expr::Return(_) = stmt.0.1 {
-                ret = Some(r);
+                ret = Some((r, stmt.2.clone()));
                 break
             }
             if !stmt.1 {
-                ret = Some(r);
+                ret = Some((r, stmt.2.clone()));
                 if self.0.len() != i + 1 {
                     return Err(ParseET::CompilationError(format!("returning expression needs to be at end of block")).at(stmt.2.clone()).when("compiling block"))
                 }
                 break
             }
         }
-        unsafe {Ok(ret.unwrap_or_else(||Variable {
-            ast_type: Type(Ty::Tuple(vec![]), self.1.clone()),
+        ret = ret.map(|(mut v, mut l)| {
+            std::mem::swap(&mut v.ast_type.1, &mut l);
+            (v, l)
+        });
+        unsafe {Ok(ret.unwrap_or_else(||(Variable {
+            ast_type: Type(Ty::Tuple(vec![]), self.1.end().span()),
             llvm_type: core::LLVMVoidType(),
             llvm_value: *[].as_mut_ptr(),
-        }))}
+        }, self.1.end().span())))}
     }
 }
 
@@ -269,7 +278,7 @@ impl Type {
                         core::LLVMVoidType()
                     }
                 },
-                Ty::Signature(_, _, _) => unimplemented!("signature types to llvm type not implemented yet")
+                Ty::Signature(_, _, _, _) => unimplemented!("signature types to llvm type not implemented yet")
             })
         }
     }
@@ -318,17 +327,21 @@ impl Type {
                     (Ty::Array(t1, _l1), Ty::Slice(t2)) => t1.satisfies(t2), // array satisfies slice
                 (Ty::Slice(t1), Ty::Slice(t2)) => t1.satisfies(t2),
                 (Ty::Tuple(t1), Ty::Tuple(t2)) => t1.iter().zip(t2).all(|(t1, t2)|t1.satisfies(t2)),
-                (Ty::Signature(a1, r1, unsafe_fn1), Ty::Signature(a2, r2, unsafe_fn2)) => a1.iter().zip(a2).all(|(t1, t2) | t1.satisfies(t2)) && r1.satisfies(r2) && (unsafe_fn1 == unsafe_fn2 || !*unsafe_fn2),
+                (Ty::Signature(a1, r1, unsafe_fn1, vararg1), Ty::Signature(a2, r2, unsafe_fn2, vararg2)) =>
+                    ((a1.len() == a2.len() && vararg1 == vararg2) || *vararg2) &&
+                    a1.iter().zip(a2).all(|(t1, t2) | t1.satisfies(t2)) &&
+                    r1.satisfies(r2) &&
+                    (unsafe_fn1 == unsafe_fn2 || !*unsafe_fn2),
                 _ => false
             }
         }
     }
 
-    pub(crate) fn satisfies_or_err(&self, other: &Type, at: &Span) -> Result<(), ParseError> {
+    pub(crate) fn satisfies_or_err(&self, other: &Type) -> Result<(), ParseError> {
         if self.satisfies(other) {
             Ok(())
         } else {
-            Err(ParseET::TypeError(other.print(), self.print()).ats(vec![self.1.clone(), other.1.clone(), at.clone()]))
+            Err(ParseET::TypeError(other.print(), self.print()).ats(vec![self.1.clone(), other.1.clone()]))
         }
     }
 }

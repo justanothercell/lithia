@@ -30,7 +30,12 @@ impl CodePrinter for Ty {
                     format!("{}<{}>", base_type.print(), generics.iter().map(|g|g.0.print()).collect::<Vec<_>>().join(", "))
                 },
             Ty::Tuple(types) => format!("({})", types.iter().map(|t|t.0.print()).collect::<Vec<_>>().join(", ")),
-            Ty::Signature(args, ret, unsafe_fn) => format!("fn({}){} -> {}", args.iter().map(|t|t.0.print()).collect::<Vec<_>>().join(", "), if *unsafe_fn { ":unsafe".to_string() } else { String::new() }, ret.0.print()),
+            Ty::Signature(args, ret, unsafe_fn, vararg) => format!("{}fn({}{}) -> {}",
+                                                                   if *unsafe_fn { "unsafe ".to_string() } else { String::new() },
+                                                                   args.iter().map(|t|t.0.print()).collect::<Vec<_>>().join(", "),
+                                                                   if *vararg { if args.len() > 0 { ", ...".to_string() } else { "...".to_string() } } else { String::new() },
+
+                                                                   ret.0.print()),
         }
     }
 }

@@ -18,6 +18,10 @@ impl ParseError {
         self.locs = vec![loc];
         self
     }
+    pub(crate) fn at_add(mut self, loc: Span) -> Self{
+        self.locs.push(loc);
+        self
+    }
     pub(crate) fn ats(mut self, locs: Vec<Span>) -> Self{
         self.locs = locs;
         self
@@ -119,6 +123,7 @@ impl Display for ParseError {
 pub(crate) trait OnParseErr{
     fn e_when<S: Into<String>>(self, reason: S) -> Self;
     fn e_at(self, loc: Span) -> Self;
+    fn e_at_add(self, loc: Span) -> Self;
 }
 
 impl<T> OnParseErr for Result<T, ParseError> {
@@ -128,5 +133,8 @@ impl<T> OnParseErr for Result<T, ParseError> {
 
     fn e_at(self, loc: Span) -> Self {
         self.map_err(|err| err.at(loc))
+    }
+    fn e_at_add(self, loc: Span) -> Self {
+        self.map_err(|err| err.at_add(loc))
     }
 }

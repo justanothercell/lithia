@@ -106,11 +106,12 @@ pub(crate) enum Ty {
     Array(Box<Type>, usize),
     Slice(Box<Type>),
     Tuple(Vec<Type>),
-    Signature(Vec<Type>, Box<Type>, Self::unsafe_func)
+    Signature(Vec<Type>, Box<Type>, Self::unsafe_func, Self::vararg_func)
 }
 impl Ty {
     #[allow(non_camel_case_types)]
     type unsafe_func = bool;
+    type vararg_func = bool;
     pub(crate) fn empty() -> Self{
         Ty::Tuple(vec![])
     }

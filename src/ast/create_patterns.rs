@@ -171,7 +171,7 @@ pub(crate) fn build_patterns() -> Patterns {
             (Succeed(ExpectIdent("fn".to_string()).pat()).pat(), function.clone().map(|f, _| ModuleContent::Function(f)).pat()),
             (Succeed(ExpectIdent("const".to_string()).pat()).pat(), constant.clone().map(|c, _| ModuleContent::Const(c)).pat())
         ])).pat()
-        ).map_res(|content, loc| {
+        ).map_res(|content, _| {
             let mut functions = HashMap::new();
             let mut constants = HashMap::new();
             for (tags, c) in content.into_iter() {

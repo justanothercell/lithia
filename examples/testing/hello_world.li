@@ -2,17 +2,14 @@
 #[extern("C")]
 fn puts(msg: &) -> i32;
 
+#[unsafe]
+#[vararg]
+#[extern("C")]
+fn printf(fmt: &[u8]) -> i32;
+
 const FOO: &[u8;8] = &"message";
 
 fn main(){
-    let msg = "message";
-    let msg2 = &msg;
-    let msg3 = &&msg;
-
     #[unsafe]
-    puts(&msg);
-    #[unsafe]
-    puts(*msg3);
-    #[unsafe]
-    puts(*&****&&&&FOO);
+    printf(&"hello %d", 10u8);
 }
