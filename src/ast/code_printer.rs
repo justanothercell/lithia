@@ -74,7 +74,9 @@ impl CodePrinter for HashMap<String, Tag> {
 
 impl CodePrinter for Tag {
     fn print(&self) -> String {
-        format!("{}({})", self.0.0, self.1.iter().map(|v| v.print()).collect::<Vec<_>>().join(", "))
+        format!("{}{}", self.0.0, if self.1.len() > 0 {
+            format!("({})", self.1.iter().map(|v| v.print()).collect::<Vec<_>>().join(", "))
+        } else { String::new() })
     }
 }
 

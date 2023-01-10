@@ -1,3 +1,4 @@
+#[unsafe]
 #[extern("C")]
 fn puts(msg: &) -> i32;
 

@@ -52,28 +52,30 @@ pub(crate) fn build_patterns() -> Patterns {
         (Succeed(item.clone()).pat(), item.clone().map(|item, loc| Ty::Single(vec![], item)).pat()),
     ]), |ty, loc| Type(ty, loc)));
     let (tag_args, tag_arg_finalizer) = Latent::new();
-    let flag = Pattern::inline((
-                                   GetIdent,
-                                   ExpectParticle('('),
-                                   Optional(Fail(ExpectParticle(')').pat()).pat(), tag_args.clone()),
-                                   While(
-            Fail(ExpectParticle(')').pat()).pat(),
-            (ExpectParticle(','), tag_args.clone()).map(|(_, f), _|f).pat()
+    let tag = Pattern::inline((
+        GetIdent,
+        Optional(ExpectParticle('(').pat(),(
+        ExpectParticle('('),
+        Optional(Fail(ExpectParticle(')').pat()).pat(), tag_args.clone()),
+        While(
+    Fail(ExpectParticle(')').pat()).pat(),
+    (ExpectParticle(','), tag_args.clone()).map(|(_, f), _|f).pat()
         ),
-                                   ExpectParticle(')')
-    ), |(name, _, arg0, mut args, _), loc|{
+                                   ExpectParticle(')')).pat())
+    ), |(name, mut args_opt), loc|{
+        let (_, arg0, mut args, _) = args_opt.unwrap_or(((), None, vec![], ()));
         arg0.map(|arg0| args.insert(0, arg0));
         Tag(name, args, loc)
     });
     tag_arg_finalizer.finalize(Pattern::named("tag arg", Match(vec![
-        (Succeed((GetIdent, ExpectParticle('(')).pat()).pat(), flag.clone().map(|f, _| TagValue::Tag(Box::new(f))).pat()),
+        (Succeed((GetIdent, ExpectParticle('(')).pat()).pat(), tag.clone().map(|f, _| TagValue::Tag(Box::new(f))).pat()),
         (Succeed(GetIdent.pat()).pat(), GetIdent.map(|id, _| TagValue::Ident(id)).pat()),
         (Succeed(GetLiteral.pat()).pat(), GetLiteral.map(|lit, _| TagValue::Lit(lit)).pat()),
     ]), |v, _|v));
     let full_tag = Pattern::named("tag", (
         ExpectParticle('#'),
         ExpectParticle('['),
-        flag.clone(),
+        tag.clone(),
         ExpectParticle(']')
     ), |(_, _, flag, _), _| flag);
     let tags = Pattern::named("tags",
