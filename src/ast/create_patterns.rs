@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const, AstLiteral};
+use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const, AstLiteral, FLagValue};
 use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk, Optional};
 use crate::ast::patterns::dynamic::{Latent, Mapping};
@@ -51,7 +51,20 @@ pub(crate) fn build_patterns() -> Patterns {
             }).pat()),
         (Succeed(item.clone()).pat(), item.clone().map(|item, loc| Ty::Single(vec![], item)).pat()),
     ]), |ty, loc| Type(ty, loc)));
-
+    let flags_arg = Pattern::named("flag argument", Match(vec![
+        (GetIdent.pat(), GetIdent.map(|id, _| FLagValue::Ident(id)).pat()),
+        (GetLiteral.pat(), GetLiteral.map(|id, _| FLagValue::Lit(id)).pat())
+    ]), |v, _|v);
+    let flag = Pattern::named("flag", (
+        ExpectParticle('#'),
+        ExpectParticle('('),
+        Optional(GetIdent.pat(), flags_arg.clone()),
+        While(
+            Fail(ExpectParticle(')').pat()).pat(),
+            flags_arg.clone()
+        ),
+        ExpectParticle(')')
+    ), ||)
     let (expression, expression_finalizer) = Latent::new();
     let let_create = Pattern::named("variable creation", (
         ExpectIdent("let".to_string()),

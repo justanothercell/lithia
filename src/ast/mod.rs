@@ -21,6 +21,14 @@ impl Item{
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Flag(pub(crate) Ident, pub(crate) Vec<FlagValue>);
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum  FLagValue{
+    Lit(AstLiteral),
+    Ident(Ident)
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct AstLiteral(pub(crate) Literal, pub(crate) Span);
 
 #[derive(Debug, Clone, PartialEq)]
@@ -39,7 +47,6 @@ pub(crate) enum Expr {
     VarAssign(Ident, Option<Operator>, Box<Expression>),
     Return(Option<Box<Expression>>),
 }
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Operator(pub(crate) Op, pub(crate) Span);
