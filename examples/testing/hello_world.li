@@ -8,7 +8,11 @@ fn main(){
     let msg = "message";
     let msg2 = &msg;
     let msg3 = &&msg;
+
+    #[unsafe]
     puts(&msg);
+    #[unsafe]
     puts(*msg3);
+    #[unsafe]
     puts(*&****&&&&FOO);
 }

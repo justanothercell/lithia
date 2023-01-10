@@ -4,7 +4,7 @@ use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const
 use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk, Optional};
 use crate::ast::patterns::dynamic::{Latent, Mapping};
-use crate::ast::patterns::simple::{ExpectIdent, ExpectParticle, ExpectParticleExact, GetIdent, GetLiteral, GetNext, GetParticle};
+use crate::ast::patterns::simple::{ExpectIdent, ExpectParticle, ExpectParticleExact, GetIdent, GetLiteral, GetNext};
 use crate::error::{ParseET};
 use crate::source::span::Span;
 use crate::tokens::{Literal, NumLit, NumLitTy};

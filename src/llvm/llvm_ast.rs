@@ -72,13 +72,24 @@ impl Func {
         };
         let function = unsafe { core::LLVMAddFunction(env.module, c_str_ptr!(self.name.0), function_type) };
         env.globals.insert(self.name.0.to_string(), Variable {
-            ast_type: Type(Ty::Signature(self.args.clone().into_iter().map(|(i, t)|t).collect(), Box::new(self.ret.clone())), self.name.1.clone()),
+            ast_type: Type(Ty::Signature(self.args.clone().into_iter().map(|(i, t)|t).collect(), Box::new(self.ret.clone()), self.tags.contains_key("unsafe")), self.name.1.clone()),
             llvm_type: function_type,
             llvm_value: function,
         });
         Ok(())
     }
     pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<(), ParseError> {
+        if self.tags.contains_key("extern") {
+            if self.body.is_some() {
+                return Err(ParseET::CompilationError("extern function may not havea body".to_string()).at(self.name.1.clone()))
+            }
+            return if self.tags.contains_key("unsafe") {
+                Ok(())
+            } else {
+                Err(ParseET::UnsafeError("extern function".to_string()).at(self.name.1.clone()))
+            }
+        }
+        let body = self.body.as_ref().unwrap();
         let function = env.get_var(&self.name.0, Some(&self.loc))?.llvm_value;
         let entry_block = unsafe { core::LLVMAppendBasicBlock(function, c_str_ptr!("entry")) };
         let entry_builder = env.builder;
@@ -87,14 +98,14 @@ impl Func {
             core::LLVMPositionBuilderAtEnd(b, entry_block);
             b
         };
-        env.push_stack(true);
+        env.push_stack(true, self.tags.contains_key("unsafe"));
         self.args.iter()
             .map(|(ident, ty)|(ident, ty, ty.llvm_type(env)))
             .collect::<Vec<(&Ident, &Type, Result<LLVMTypeRef, ParseError>)>>()
             .into_iter()
             .enumerate()
             .map(|(i, (ident, ty, llvm_ty))| {
-                let _ = env.stack.last_mut().unwrap().0.insert(self.name.0.clone(),
+                let _ = env.stack.last_mut().unwrap().vars.insert(self.name.0.clone(),
                                                                Variable {
                                                                    ast_type: ty.clone(),
                                                                    llvm_type: llvm_ty?,
@@ -103,7 +114,7 @@ impl Func {
                 Ok(())
             })
             .collect::<Result<Vec<()>, ParseError>>()?;
-        let mut ret = self.body.as_ref().unwrap().build(env)?;
+        let mut ret = body.build(env)?;
         env.pop_stack();
         ret.ast_type.satisfies_or_err(&self.ret, &ret.ast_type.1)?;
         unsafe {
@@ -117,7 +128,11 @@ impl Func {
 
 impl Expression {
     pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<Variable, ParseError> {
-        unsafe {
+        let outer_unsafe = env.stack.last().unwrap().unsafe_ctx;
+        if self.0.contains_key("unsafe") {
+            env.stack.last_mut().unwrap().unsafe_ctx = true;
+        }
+        let r = unsafe {
             Ok(match &self.1 {
                 Expr::Literal(lit) => lit.llvm_literal(env)?,
                 Expr::Point(expr) => {
@@ -142,7 +157,7 @@ impl Expression {
                     let deref = core::LLVMBuildLoad2(env.builder, llvm_ty, v.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
                     Variable {
                         ast_type: inner_ty.clone(),
-                        llvm_type: llvm_ty, // TODO: replace 0
+                        llvm_type: llvm_ty,
                         llvm_value: deref,
                     }
                 }
@@ -150,7 +165,10 @@ impl Expression {
                 Expr::Block(block) => block.build(env)?,
                 Expr::FuncCall(fun, args) => {
                     let var = env.get_var(&fun.0.first().unwrap().0, Some(&fun.1))?;
-                    if let Ty::Signature(arg_types, ret) = var.ast_type.0 {
+                    if let Ty::Signature(arg_types, ret, is_unsafe) = var.ast_type.0 {
+                        if is_unsafe && !env.stack.last().unwrap().unsafe_ctx {
+                            return Err(ParseET::UnsafeError("unsafe function".to_string()).ats(vec![var.ast_type.1.clone(), fun.1.clone()]))
+                        }
                         if arg_types.len() != args.len() {
                             return Err(ParseET::CompilationError(format!("expected {} args, got {}", arg_types.len(), args.len())).at(self.2.clone()).when("compiling function call"))
                         }
@@ -173,7 +191,7 @@ impl Expression {
                 },
                 Expr::VarCreate(name, mutable, ty, expr) => {
                     let v = expr.build(env, Some(name.0.clone()))?;
-                    env.stack.last_mut().unwrap().0.insert(name.0.clone(), v.clone());
+                    env.stack.last_mut().unwrap().vars.insert(name.0.clone(), v.clone());
                     v
                 }
                 //Expr::BinaryOp(_, _, _) => {}
@@ -181,7 +199,11 @@ impl Expression {
                 //Expr::VarAssign(_, _, _) => {}
                 _ => unimplemented!()
             })
+        };
+        if self.0.contains_key("unsafe") {
+            env.stack.last_mut().unwrap().unsafe_ctx = outer_unsafe;
         }
+        r
     }
 }
 
@@ -247,7 +269,7 @@ impl Type {
                         core::LLVMVoidType()
                     }
                 },
-                Ty::Signature(_, _) => unimplemented!("signature types to llvm type not implemented yet")
+                Ty::Signature(_, _, _) => unimplemented!("signature types to llvm type not implemented yet")
             })
         }
     }
@@ -296,7 +318,7 @@ impl Type {
                     (Ty::Array(t1, _l1), Ty::Slice(t2)) => t1.satisfies(t2), // array satisfies slice
                 (Ty::Slice(t1), Ty::Slice(t2)) => t1.satisfies(t2),
                 (Ty::Tuple(t1), Ty::Tuple(t2)) => t1.iter().zip(t2).all(|(t1, t2)|t1.satisfies(t2)),
-                (Ty::Signature(a1, r1), Ty::Signature(a2, r2)) => a1.iter().zip(a2).all(|(t1, t2)|t1.satisfies(t2)) && r1.satisfies(r2),
+                (Ty::Signature(a1, r1, unsafe_fn1), Ty::Signature(a2, r2, unsafe_fn2)) => a1.iter().zip(a2).all(|(t1, t2) | t1.satisfies(t2)) && r1.satisfies(r2) && (unsafe_fn1 == unsafe_fn2 || !*unsafe_fn2),
                 _ => false
             }
         }

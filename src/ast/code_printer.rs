@@ -30,7 +30,7 @@ impl CodePrinter for Ty {
                     format!("{}<{}>", base_type.print(), generics.iter().map(|g|g.0.print()).collect::<Vec<_>>().join(", "))
                 },
             Ty::Tuple(types) => format!("({})", types.iter().map(|t|t.0.print()).collect::<Vec<_>>().join(", ")),
-            Ty::Signature(args, ret) => format!("fn({}) -> {}", args.iter().map(|t|t.0.print()).collect::<Vec<_>>().join(", "), ret.0.print()),
+            Ty::Signature(args, ret, unsafe_fn) => format!("fn({}){} -> {}", args.iter().map(|t|t.0.print()).collect::<Vec<_>>().join(", "), if *unsafe_fn { ":unsafe".to_string() } else { String::new() }, ret.0.print()),
         }
     }
 }
@@ -55,7 +55,7 @@ impl CodePrinter for Literal {
             Literal::Number(NumLit::Integer(i), ty) => format!("{i}{}", ty.as_ref().map_or(String::new(), |t| format!("{t}"))),
             Literal::Number(NumLit::Float(f), ty) => format!("{f}{}", ty.as_ref().map_or(String::new(), |t| format!("{t}"))),
             Literal::Bool(b) => format!("{b}"),
-            Literal::Array(v, ty, _) => format!("[{};{}]", v.iter().map(|v|v.print()).collect::<Vec<_>>().join(", "), ty.print()),
+            Literal::Array(v, _ty, _) => format!("[{}]", v.iter().map(|v|v.print()).collect::<Vec<_>>().join(", ")),
         }
     }
 }

@@ -30,10 +30,16 @@ macro_rules! c_str_ptr {
 
 pub(crate) struct LLVMModGenEnv {
     globals: HashMap<String, Variable>,
-    stack: Vec<(HashMap<String, Variable>, Self::opaque)>,
+    stack: Vec<StackEnv>,
     mod_name: String,
     module: prelude::LLVMModuleRef,
     builder: prelude::LLVMBuilderRef
+}
+
+pub(crate) struct StackEnv {
+    vars: HashMap<String, Variable>,
+    opaque: bool,
+    unsafe_ctx: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -44,9 +50,6 @@ pub(crate) struct Variable{
 }
 
 impl LLVMModGenEnv{
-    #[allow(non_camel_case_types)]
-    pub(crate) type opaque = bool;
-
     pub(crate) fn new(mod_name: String) -> Self{
         let module = unsafe { core::LLVMModuleCreateWithName(c_str_ptr!(mod_name)) };
         let main_entrypoint_function_type = unsafe {
@@ -68,8 +71,12 @@ impl LLVMModGenEnv{
         }
     }
 
-    pub(crate) fn push_stack(&mut self, opaque: Self::opaque){
-        self.stack.push((HashMap::new(), opaque))
+    pub(crate) fn push_stack(&mut self, opaque: bool, unsafe_ctx: bool){
+        self.stack.push(StackEnv {
+            vars: Default::default(),
+            opaque,
+            unsafe_ctx: unsafe_ctx || (!opaque && self.stack.last().map(|s| s.unsafe_ctx).unwrap_or(false)),
+        })
     }
 
     pub(crate) fn pop_stack(&mut self){
@@ -78,10 +85,10 @@ impl LLVMModGenEnv{
 
     pub(crate) fn get_var(&self, ident: &str, loc: Option<&Span>) -> Result<Variable, ParseError>{
         for frame in self.stack.iter().rev(){
-            if let Some(v) = frame.0.get(ident){
+            if let Some(v) = frame.vars.get(ident){
                 return Ok(v.clone())
             }
-            if frame.1 { break }
+            if frame.opaque { break }
         }
         if let Some(v) = self.globals.get(ident){
             Ok(v.clone())
