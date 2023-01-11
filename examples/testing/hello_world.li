@@ -12,5 +12,5 @@ const FOO: &[u8;8] = &"message";
 fn main(){
     let x = 0u32;
     #[unsafe]
-    printf(&"hello \x65 %d %d\n", x, x);
+    printf(&"hello \u{03} %d %d\n", x, x);
 }

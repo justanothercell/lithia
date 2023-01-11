@@ -213,21 +213,24 @@ pub(crate) fn unescape_str(str: &str, loc: &Span) -> Result<String, ParseError>{
                         }
                     }
                     'u' => {
-                        let mut v = String::new();
-                        if let Some(c1) = chars.next() &&
-                            let Some(c2) = chars.next() &&
-                            let Some(c3) = chars.next() &&
-                            let Some(c4) = chars.next(){
-                            v.push(c1);
-                            v.push(c2);
-                            v.push(c3);
-                            v.push(c4);
-                            out.push(char::from_u32(u32::from_str_radix(&v, 0x10)
-                                .map_err(|_e| ParseET::LiteralError(Literal::String(String::new()), format!("invalid unicode literal '\\u{v:04}'")).at(loc.clone()))?)
-                                .ok_or(ParseET::LiteralError(Literal::String(String::new()), format!("invalid unicode literal '\\u{v:04}'")).at(loc.clone()))?)
-                        } else {
-                            return Err(ParseET::LiteralError(Literal::String(String::new()), "unterminated ascii literal".to_string()).at(loc.clone()))
+                        if let Some('{') = chars.next() {} else {
+                            return Err(ParseET::LiteralError(Literal::String(String::new()), "expected '{{' in unicode literal".to_string()).at(loc.clone()))
                         }
+                        let mut ok = false;
+                        let mut v = String::new();
+                        while let Some(c) = chars.next() {
+                            if c == '}' {
+                                ok = true;
+                                break
+                            }
+                            v.push(c);
+                        }
+                        if !ok {
+                            return Err(ParseET::LiteralError(Literal::String(String::new()), "unterminated unicode literal".to_string()).at(loc.clone()))
+                        }
+                        out.push(char::from_u32(u32::from_str_radix(&v, 0x10)
+                            .map_err(|_e| ParseET::LiteralError(Literal::String(String::new()), format!("invalid unicode literal '\\u{{{v}}}'")).at(loc.clone()))?)
+                            .ok_or(ParseET::LiteralError(Literal::String(String::new()), format!("invalid unicode literal '\\u{{{v}}}'")).at(loc.clone()))?)
                     }
                     _ => return Err(ParseET::LiteralError(Literal::String(String::new()), format!("invalid escape sequence '\\{c}'")).at(loc.clone()))
                 }
