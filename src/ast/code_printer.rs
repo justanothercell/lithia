@@ -73,7 +73,7 @@ impl CodePrinter for AstLiteral {
 
 impl CodePrinter for HashMap<String, Tag> {
     fn print(&self) -> String {
-        self.iter().map(|(name, tag)| format!("#[{}]", tag.print())).collect::<Vec<_>>().join("\n")
+        self.iter().map(|(_name, tag)| format!("#[{}]", tag.print())).collect::<Vec<_>>().join("\n")
     }
 }
 

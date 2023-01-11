@@ -10,7 +10,7 @@ pub(crate) struct Span {
 }
 
 impl PartialEq for Span {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _: &Self) -> bool {
         true
     }
 }

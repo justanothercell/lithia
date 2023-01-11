@@ -1,14 +1,13 @@
-use std::env::var;
 use std::ffi::{c_uint, c_ulonglong};
 use llvm_sys::{prelude::LLVMBool, prelude, core};
-use llvm_sys::prelude::{LLVMTypeRef, LLVMValueRef};
+use llvm_sys::prelude::{LLVMTypeRef};
 use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, Module, Ty, Type};
 use crate::{c_str_ptr};
 use crate::ast::code_printer::CodePrinter;
 use crate::error::{OnParseErr, ParseError, ParseET};
 use crate::llvm::{LLVMModGenEnv, Variable};
 use crate::source::span::Span;
-use crate::tokens::{Literal, NumLit, NumLitTy};
+use crate::tokens::{Literal, NumLit};
 
 impl Module {
     pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<(), ParseError> {
@@ -105,7 +104,7 @@ impl Func {
             .collect::<Vec<(&Ident, &Type, Result<LLVMTypeRef, ParseError>)>>()
             .into_iter()
             .enumerate()
-            .map(|(i, (ident, ty, llvm_ty))| {
+            .map(|(i, (_ident, ty, llvm_ty))| {
                 let _ = env.stack.last_mut().unwrap().vars.insert(self.name.0.clone(),
                                                                Variable {
                                                                    ast_type: ty.clone(),
@@ -115,7 +114,7 @@ impl Func {
                 Ok(())
             })
             .collect::<Result<Vec<()>, ParseError>>()?;
-        let (mut ret, ret_loc) = body.build(env)?;
+        let (ret, ret_loc) = body.build(env)?;
         env.pop_stack();
         ret.ast_type.satisfies_or_err(&self.ret).e_at_add(ret_loc)?;
         unsafe {

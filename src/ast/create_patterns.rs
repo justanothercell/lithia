@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::hash::Hash;
 use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const, AstLiteral, TagValue, Tag};
 use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk, Optional};
@@ -49,7 +48,7 @@ pub(crate) fn build_patterns() -> Patterns {
                     Ok(Ty::Slice(Box::new(ty)))
                 }
             }).pat()),
-        (Succeed(item.clone()).pat(), item.clone().map(|item, loc| Ty::Single(vec![], item)).pat()),
+        (Succeed(item.clone()).pat(), item.clone().map(|item, _| Ty::Single(vec![], item)).pat()),
     ]), |ty, loc| Type(ty, loc)));
     let (tag_args, tag_arg_finalizer) = Latent::new();
     let tag = Pattern::inline((
@@ -62,7 +61,7 @@ pub(crate) fn build_patterns() -> Patterns {
     (ExpectParticle(','), tag_args.clone()).map(|(_, f), _|f).pat()
         ),
                                    ExpectParticle(')')).pat())
-    ), |(name, mut args_opt), loc|{
+    ), |(name, args_opt), loc|{
         let (_, arg0, mut args, _) = args_opt.unwrap_or(((), None, vec![], ()));
         arg0.map(|arg0| args.insert(0, arg0));
         Tag(name, args, loc)
@@ -89,7 +88,7 @@ pub(crate) fn build_patterns() -> Patterns {
         Optional(ExpectParticle(':').pat(), (ExpectParticle(':'), type_pat.clone()).map(|(_, t), _| t).pat()),
         ExpectParticle('='),
         expression.clone()
-    ), |(_, name, opt_ty, _, expr), loc|
+    ), |(_, name, opt_ty, _, expr), _|
         Expr::VarCreate(name, false, opt_ty, Box::new(expr)));
     let function_call = Pattern::named("function call", (
         item.clone(),
@@ -101,7 +100,7 @@ pub(crate) fn build_patterns() -> Patterns {
             (ExpectParticle(','), expression.clone()).map(|(_, expr), _|expr).pat()
         ),
         ExpectParticle(')'),
-    ), |(item, _, arg0, mut args, _), loc| {
+    ), |(item, _, arg0, mut args, _), _| {
         arg0.map(|arg0| args.insert(0, arg0));
         Expr::FuncCall(item, args)
     });
@@ -110,8 +109,8 @@ pub(crate) fn build_patterns() -> Patterns {
         Match(vec![
             (Succeed(ExpectIdent("let".to_string()).pat()).pat(), let_create.clone()),
             (Succeed((item.clone(), ExpectParticle('(')).pat()).pat(), function_call.clone()),
-            (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'), expression.clone()).map(|(_, expr), loc| Expr::Point(Box::new(expr))).pat()),
-            (Succeed(ExpectParticle('*').pat()).pat(), (ExpectParticle('*'), expression.clone()).map(|(_, expr), loc| Expr::Deref(Box::new(expr))).pat()),
+            (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'), expression.clone()).map(|(_, expr), _| Expr::Point(Box::new(expr))).pat()),
+            (Succeed(ExpectParticle('*').pat()).pat(), (ExpectParticle('*'), expression.clone()).map(|(_, expr), _| Expr::Deref(Box::new(expr))).pat()),
             (Succeed(GetIdent.pat()).pat(), GetIdent.map(|ident, loc| Expr::Variable(ident)).pat()),
             (Succeed(GetLiteral.pat()).pat(), GetLiteral.map(|lit, loc| Expr::Literal(lit)).pat())
         ])), |(tags, expr), loc| Expression(tags, expr, loc)));

@@ -111,6 +111,7 @@ pub(crate) enum Ty {
 impl Ty {
     #[allow(non_camel_case_types)]
     type unsafe_func = bool;
+    #[allow(non_camel_case_types)]
     type vararg_func = bool;
     pub(crate) fn empty() -> Self{
         Ty::Tuple(vec![])

@@ -115,7 +115,7 @@ impl Debug for Literal {
             Literal::Number(NumLit::Integer(i), t) => format!("Integer({i}, {t:?})"),
             Literal::Number(NumLit::Float(f), t) => format!("Float({f}, {t:?})"),
             Literal::Bool(b) => format!("Bool({b})"),
-            Literal::Array(v, l, s) => format!("Array({v:?};{l:?})"),
+            Literal::Array(v, l, _) => format!("Array({v:?};{l:?})"),
         })
     }
 }

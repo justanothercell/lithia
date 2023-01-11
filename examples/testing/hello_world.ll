@@ -9,9 +9,9 @@ entry:
   ret void
 }
 
-declare i32 @puts(ptr)
-
 declare i32 @printf(ptr, ...)
+
+declare i32 @puts(ptr)
 
 define void @main.1() {
 entry:

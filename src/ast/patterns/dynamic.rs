@@ -1,4 +1,4 @@
-use std::cell::{Cell, RefMut, UnsafeCell};
+use std::cell::{UnsafeCell};
 use std::rc::Rc;
 use crate::ast::patterns::{Consumer, Pat};
 use crate::error::{ParseError};

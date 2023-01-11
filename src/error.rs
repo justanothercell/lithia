@@ -37,7 +37,6 @@ impl From<std::io::Error> for ParseError {
 #[derive(Debug)]
 pub(crate) enum ParseET {
     EOF,
-    EmptyInput,
     IOError(std::io::Error),
     TokenizationError(String),
     LiteralError(Literal, String),
@@ -79,7 +78,6 @@ impl Display for ParseError {
         write!(f, "{}{}{}",
            match &self.et {
                ParseET::EOF => format!("Input Error:\n    reached end of file"),
-               ParseET::EmptyInput => format!("Input Error:\n    input was empty"),
                ParseET::IOError(e) => format!("IO Error:\n    {}", e),
                ParseET::TokenizationError(e) => format!("Tokenization Error:\n    {}", e),
                ParseET::LiteralError(lit, e) => format!("{} literal Error:\n    {}", match lit {
