@@ -15,7 +15,7 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
             '"' => {
                 let (string, span) = collect_until(&mut iter, true, true, false,
                                                    |c| c != '"').e_when("tokenizing string literal".to_string())?;
-                tokens.push(TokenType::Literal(Literal::String(string)).at(span));
+                tokens.push(TokenType::Literal(Literal::String(unescape_str(&string, &span)?)).at(span));
             }
             '/' => {
                 iter.next();
@@ -185,4 +185,56 @@ pub(crate) fn str_to_num_lit(mut num: String) -> Result<(NumLit, Option<NumLitTy
         )
     }?;
     Ok((lit, ty))
+}
+
+pub(crate) fn unescape_str(str: &str, loc: &Span) -> Result<String, ParseError>{
+    let mut out = String::new();
+    let mut chars = str.chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            if let Some(c) = chars.next() {
+                match c {
+                    'n' => out.push('\n'),
+                    'r' => out.push('\r'),
+                    't' => out.push('\t'),
+                    '"' => out.push('"'),
+                    '\'' => out.push('\''),
+                    'x' => {
+                        if let Some(c1) = chars.next() &&
+                            let Some(c2) = chars.next() {
+                            let mut v = String::new();
+                            v.push(c1);
+                            v.push(c2);
+                            out.push(char::from_u32(u32::from_str_radix(&v, 0x10)
+                                .map_err(|_e| ParseET::LiteralError(Literal::String(String::new()), format!("invalid ascii literal '\\x{v:02}'")).at(loc.clone()))?)
+                                .ok_or(ParseET::LiteralError(Literal::String(String::new()), format!("invalid ascii literal '\\x{v:02}'")).at(loc.clone()))?)
+                        } else {
+                            return Err(ParseET::LiteralError(Literal::String(String::new()), "unterminated ascii literal".to_string()).at(loc.clone()))
+                        }
+                    }
+                    'u' => {
+                        let mut v = String::new();
+                        if let Some(c1) = chars.next() &&
+                            let Some(c2) = chars.next() &&
+                            let Some(c3) = chars.next() &&
+                            let Some(c4) = chars.next(){
+                            v.push(c1);
+                            v.push(c2);
+                            v.push(c3);
+                            v.push(c4);
+                            out.push(char::from_u32(u32::from_str_radix(&v, 0x10)
+                                .map_err(|_e| ParseET::LiteralError(Literal::String(String::new()), format!("invalid unicode literal '\\u{v:04}'")).at(loc.clone()))?)
+                                .ok_or(ParseET::LiteralError(Literal::String(String::new()), format!("invalid unicode literal '\\u{v:04}'")).at(loc.clone()))?)
+                        } else {
+                            return Err(ParseET::LiteralError(Literal::String(String::new()), "unterminated ascii literal".to_string()).at(loc.clone()))
+                        }
+                    }
+                    _ => return Err(ParseET::LiteralError(Literal::String(String::new()), format!("invalid escape sequence '\\{c}'")).at(loc.clone()))
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    Ok(out)
 }

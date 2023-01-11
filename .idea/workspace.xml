@@ -17,11 +17,8 @@
   <component name="ChangeListManager">
     <list default="true" id="7d76083a-46e7-4914-8e87-b068d29779f6" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.bc" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.bc" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.exe" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.exe" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.li" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.li" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.ll" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.ll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tokens/tokenizer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/tokens/tokenizer.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -140,7 +137,7 @@
       <workItem from="1673290696251" duration="4004000" />
       <workItem from="1673332862766" duration="2218000" />
       <workItem from="1673361042549" duration="12173000" />
-      <workItem from="1673432636082" duration="1221000" />
+      <workItem from="1673432636082" duration="2134000" />
     </task>
     <servers />
   </component>
