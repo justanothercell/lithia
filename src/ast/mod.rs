@@ -38,6 +38,7 @@ pub(crate) struct Expression(pub(crate) HashMap<String, Tag>, pub(crate) Expr, p
 pub(crate) enum Expr {
     Point(Box<Expression>),
     Deref(Box<Expression>),
+    Cast(Box<Expression>, Type),
     Literal(AstLiteral),
     Variable(Ident),
     Block(Block),

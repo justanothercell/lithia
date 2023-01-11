@@ -104,25 +104,38 @@ pub(crate) fn build_patterns() -> Patterns {
         arg0.map(|arg0| args.insert(0, arg0));
         Expr::FuncCall(item, args)
     });
-    expression_finalizer.finalize(Pattern::named("expression",(
-        tags.clone(),
-        Match(vec![
-            (Succeed(ExpectIdent("let".to_string()).pat()).pat(), let_create.clone()),
-            (Succeed((item.clone(), ExpectParticle('(')).pat()).pat(), function_call.clone()),
-            (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'), expression.clone()).map(|(_, expr), _| Expr::Point(Box::new(expr))).pat()),
-            (Succeed(ExpectParticle('*').pat()).pat(), (ExpectParticle('*'), expression.clone()).map(|(_, expr), _| Expr::Deref(Box::new(expr))).pat()),
-            (Succeed(GetIdent.pat()).pat(), GetIdent.map(|ident, loc| Expr::Variable(ident)).pat()),
-            (Succeed(GetLiteral.pat()).pat(), GetLiteral.map(|lit, loc| Expr::Literal(lit)).pat())
-        ])), |(tags, expr), loc| Expression(tags, expr, loc)));
     let statement = Pattern::named("statement", (
             expression.clone(),
             IsOk(ExpectParticle(';').pat())
         ), |(expr, terminated), loc| Statement(expr, terminated, loc));
-    let block = Pattern::named("block",
+    let block_content = Pattern::named("block",
         While(
             Fail(ExpectParticle('}').pat()).pat(),
             statement.clone()
         ), |stmts, loc| Block(stmts, loc));
+    let block = Pattern::inline(    (
+            ExpectParticle('{'), block_content.clone(), ExpectParticle('}')
+        ), |(_, block, _), _| block);
+    expression_finalizer.finalize(Pattern::named("expression",(
+        tags.clone(),
+        Match(vec![
+            (ExpectParticle('{').pat(), block.clone().map(|block, _| Expr::Block(block)).pat()),
+            (Succeed((item.clone(), ExpectParticle('(')).pat()).pat(), function_call.clone()),
+            (ExpectIdent("let".to_string()).pat(), let_create.clone()),
+            (ExpectParticle('&').pat(), (ExpectParticle('&'), expression.clone()).map(|(_, expr), _| Expr::Point(Box::new(expr))).pat()),
+            (ExpectParticle('*').pat(), (ExpectParticle('*'), expression.clone()).map(|(_, expr), _| Expr::Deref(Box::new(expr))).pat()),
+            (Succeed(GetIdent.pat()).pat(), GetIdent.map(|ident, loc| Expr::Variable(ident)).pat()),
+            (Succeed(GetLiteral.pat()).pat(), GetLiteral.map(|lit, loc| Expr::Literal(lit)).pat())
+        ]),
+        While((tags.clone(), ExpectIdent("as".to_string())).pat(), (tags.clone(), ExpectIdent("as".to_string()), type_pat.clone())
+            .map(|(tags, _, ty), loc|(loc, tags, ty)).pat())
+    ), |(tags, expr, casts), loc| {
+        let mut ex = Expression(tags, expr, loc);
+        for (loc, tags, cast) in casts {
+            ex = Expression(tags, Expr::Cast(Box::new(ex), cast), loc);
+        }
+        ex
+    }));
     let function = Pattern::named("function", (
             ExpectIdent("fn".to_string()),
             GetIdent,
@@ -136,7 +149,7 @@ pub(crate) fn build_patterns() -> Patterns {
             ExpectParticle(')').map(|_, loc|loc),
             Optional(ExpectParticle('-').pat(), (ExpectParticle('-'), ExpectParticleExact('>', true), type_pat.clone()).map(|(_, _, ty), _|ty).pat()),
             Match(vec![
-                (Succeed(ExpectParticle('{').pat()).pat(), (ExpectParticle('{'), block.clone(), ExpectParticle('}')).map(|(_, block, _), _| Some(block)).pat()),
+                (Succeed(ExpectParticle('{').pat()).pat(), block.clone().map(|block, _| Some(block)).pat()),
                 (Succeed(ExpectParticle(';').pat()).pat(), ExpectParticle(';').map(|_, _| None).pat())
             ])
     ), |(_, name, _, arg0, mut args, sig_end_loc, ret_ty, body), loc| {

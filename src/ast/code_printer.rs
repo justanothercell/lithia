@@ -102,6 +102,7 @@ impl CodePrinter for Expression {
             Expr::FuncCall(ident, args) => format!("{}({})", ident.print(), args.iter().map(|e|e.print()).collect::<Vec<_>>().join(", ")),
             Expr::Point(expr) => format!("&{}", expr.print()),
             Expr::Deref(expr) => format!("*{}", expr.print()),
+            Expr::Cast(expr, ty) => format!("{} as {}", expr.print(), ty.print()),
             Expr::Literal(lit) => lit.print(),
             Expr::Variable(var) => var.print(),
             Expr::UnaryOp(op, box expr) => format!("{}{}", op.print(), expr.print()),
@@ -115,7 +116,7 @@ impl CodePrinter for Expression {
             ),
             Expr::VarAssign(ident, Some(op), expr) => format!("{} {}= {}", ident.print(), op.print(), expr.print()),
             Expr::VarAssign(ident, None, expr) => format!("{} = {};", ident.print(), expr.print()),
-            Expr::Block(block) => block.print(),
+            Expr::Block(block) => block.print_indented(),
             Expr::Return(expr) => match expr { Some(e) => format!("return {}", e.print()), None => format!("return") }
         })
     }
@@ -145,7 +146,7 @@ impl CodePrinter for Statement {
 
 impl CodePrinter for Func {
     fn print(&self) -> String {
-        format!("{}fn {}({}){}{}",
+        format!("{}fn {}({}){} {}",
             if self.tags.len() > 0 { format!("{}\n", self.tags.print()) } else { String::new() },
             self.name.print(),
             self.args.iter().map(|(ident, ty)| format!("{}: {}", ident.print(), ty.print())).collect::<Vec<_>>().join(", "),
@@ -170,9 +171,9 @@ impl CodePrinter for Const {
 impl CodePrinter for Block {
     fn print(&self) -> String {
         if self.0.is_empty() {
-            String::from(" {}")
+            String::from("{}")
         } else {
-            format!(" {{\n{}\n}}", self.0.iter().map(|t| t.print_indented()).collect::<Vec<_>>().join("\n"))
+            format!("{{\n{}\n}}", self.0.iter().map(|t| t.print_indented()).collect::<Vec<_>>().join("\n"))
         }
     }
 }

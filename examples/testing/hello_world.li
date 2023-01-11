@@ -7,10 +7,14 @@ fn puts(msg: &) -> i32;
 #[extern("C")]
 fn printf(fmt: &[u8]) -> i32;
 
-const FOO: &[u8;8] = &"message";
+fn char_at(arr: &[u8], index: uptr) -> u8 {
+    let ptr = #[unsafe]{arr as uptr};
+    let char = ptr as &u8;
+    *char
+}
 
 fn main(){
-    let x: u32 = 32u32;
+    let c = char_at(&"hello", 1);
     #[unsafe]
-    printf(&"hello \u{03} %d %d\n", x, x);
+    printf(&"%d\n", c);
 }

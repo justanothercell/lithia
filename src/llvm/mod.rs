@@ -1,5 +1,6 @@
 pub(crate) mod gen_llvm;
 pub(crate) mod llvm_ast;
+pub(crate) mod gen_flow_expressions;
 
 use std::collections::HashMap;
 use std::ffi::c_uint;
