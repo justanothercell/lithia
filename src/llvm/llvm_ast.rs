@@ -177,14 +177,19 @@ impl Expression {
                                 Err(ParseET::CompilationError(format!("expected {} args, got {}", arg_types.len(), args.len())).at(self.2.clone()).when("compiling function call"))
                             }
                         }
-                        let mut args = args.iter().zip(arg_types)
+                        let mut llvm_args = args.iter().zip(arg_types)
                             .map(|(expr, t)| expr.build(env, None).map(|v| {
                                 v.ast_type.satisfies_or_err(&t).e_at_add(expr.2.clone())?;
                                 Ok(v.llvm_value)
                             }).flatten())
                             .collect::<Result<Vec<_>, _>>()?;
+                        if llvm_args.len() < args.len() {
+                            llvm_args.append(&mut args.split_at(llvm_args.len()).1.into_iter()
+                                .map(|expr| expr.build(env, None).map(|v|v.llvm_value))
+                                .collect::<Result<Vec<_>, _>>()?)
+                        }
                         let ty = ret.llvm_type(env)?;
-                        let out = core::LLVMBuildCall2(env.builder, var.llvm_type, var.llvm_value, args.as_mut_ptr(), args.len() as c_uint, c_str_ptr!(ret_name.unwrap_or(String::new())));
+                        let out = core::LLVMBuildCall2(env.builder, var.llvm_type, var.llvm_value, llvm_args.as_mut_ptr(), args.len() as c_uint, c_str_ptr!(ret_name.unwrap_or(String::new())));
                         Variable {
                             ast_type: *ret,
                             llvm_type: ty,
