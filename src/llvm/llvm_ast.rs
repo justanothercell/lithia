@@ -202,6 +202,9 @@ impl Expression {
                 Expr::VarCreate(name, mutable, ty, expr) => {
                     let v = expr.build(env, Some(name.0.clone()))?;
                     env.stack.last_mut().unwrap().vars.insert(name.0.clone(), v.clone());
+                    if let Some(t) = &ty {
+                        v.ast_type.satisfies_or_err(t)?;
+                    }
                     v
                 }
                 //Expr::BinaryOp(_, _, _) => {}

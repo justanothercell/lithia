@@ -86,9 +86,11 @@ pub(crate) fn build_patterns() -> Patterns {
     let let_create = Pattern::named("variable creation", (
         ExpectIdent("let".to_string()),
         GetIdent,
+        Optional(ExpectParticle(':').pat(), (ExpectParticle(':'), type_pat.clone()).map(|(_, t), _| t).pat()),
         ExpectParticle('='),
         expression.clone()
-    ), |(_, name, _, expr), loc| Expr::VarCreate(name, false, None, Box::new(expr)));
+    ), |(_, name, opt_ty, _, expr), loc|
+        Expr::VarCreate(name, false, opt_ty, Box::new(expr)));
     let function_call = Pattern::named("function call", (
         item.clone(),
         ExpectParticle('('),

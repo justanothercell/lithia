@@ -10,7 +10,7 @@ fn printf(fmt: &[u8]) -> i32;
 const FOO: &[u8;8] = &"message";
 
 fn main(){
-    let x = 0u32;
+    let x: u32 = 32u32;
     #[unsafe]
     printf(&"hello \u{03} %d %d\n", x, x);
 }
