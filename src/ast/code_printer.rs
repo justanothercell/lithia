@@ -146,7 +146,7 @@ impl CodePrinter for Statement {
 
 impl CodePrinter for Func {
     fn print(&self) -> String {
-        format!("{}fn {}({}){} {}",
+        format!("{}fn {}({}){}{}",
             if self.tags.len() > 0 { format!("{}\n", self.tags.print()) } else { String::new() },
             self.name.print(),
             self.args.iter().map(|(ident, ty)| format!("{}: {}", ident.print(), ty.print())).collect::<Vec<_>>().join(", "),
@@ -156,7 +156,7 @@ impl CodePrinter for Func {
                 format!(" -> {}", self.ret.0.print())
             },
             if let Some(body) = &self.body {
-                body.print()
+                format!(" {}", body.print())
             } else {String::from(";")}
         )
     }

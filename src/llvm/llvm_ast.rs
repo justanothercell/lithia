@@ -104,8 +104,8 @@ impl Func {
             .collect::<Vec<(&Ident, &Type, Result<LLVMTypeRef, ParseError>)>>()
             .into_iter()
             .enumerate()
-            .map(|(i, (_ident, ty, llvm_ty))| {
-                let _ = env.stack.last_mut().unwrap().vars.insert(self.name.0.clone(),
+            .map(|(i, (ident, ty, llvm_ty))| {
+                let _ = env.stack.last_mut().unwrap().vars.insert(ident.0.clone(),
                                                                Variable {
                                                                    ast_type: ty.clone(),
                                                                    llvm_type: llvm_ty?,
@@ -114,11 +114,15 @@ impl Func {
                 Ok(())
             })
             .collect::<Result<Vec<()>, ParseError>>()?;
-        let (ret, ret_loc) = body.build(env)?;
+        let (ret, ret_loc) = body.build(env, None)?;
         env.pop_stack();
         ret.ast_type.satisfies_or_err(&self.ret).e_at_add(ret_loc)?;
         unsafe {
-            core::LLVMBuildRetVoid(env.builder);
+            if ret.ast_type.0.is_empty() {
+                core::LLVMBuildRetVoid(env.builder);
+            } else {
+                core::LLVMBuildRet(env.builder, ret.llvm_value);
+            }
             core::LLVMDisposeBuilder(env.builder);
         }
         env.builder = entry_builder;
@@ -162,7 +166,7 @@ impl Expression {
                     }
                 }
                 Expr::Variable(var) => env.get_var(&var.0, Some(&var.1))?,
-                Expr::Block(block) => block.build(env)?.0,
+                Expr::Block(block) => block.build(env, ret_name)?.0,
                 Expr::FuncCall(fun, args) => {
                     let var = env.get_var(&fun.0.first().unwrap().0, Some(&fun.1))?;
                     if let Ty::Signature(arg_types, ret, is_unsafe, vararg) = var.ast_type.0 {
@@ -206,6 +210,16 @@ impl Expression {
                     }
                     v
                 }
+                Expr::Cast(expr, target_t) => {
+                    let v = expr.build(env, None)?;
+                    let llvm_type = target_t.llvm_type(env)?;
+                    let op_code = core::LLVMGetCastOpcode(v.llvm_value, false as LLVMBool, llvm_type, false as LLVMBool);
+                    Variable {
+                        ast_type: target_t.clone(),
+                        llvm_type,
+                        llvm_value: core::LLVMBuildCast(env.builder, op_code, v.llvm_value, llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new()))),
+                    }
+                }
                 //Expr::BinaryOp(_, _, _) => {}
                 //Expr::UnaryOp(_, _) => {}
                 //Expr::VarAssign(_, _, _) => {}
@@ -220,10 +234,10 @@ impl Expression {
 }
 
 impl Block {
-    pub(crate) fn build(&self, env: &mut LLVMModGenEnv) -> Result<(Variable, Span), ParseError> {
+    pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<(Variable, Span), ParseError> {
         let mut ret = None;
         for (i, stmt) in self.0.iter().enumerate() {
-            let r = stmt.0.build(env, None)?;
+            let r = stmt.0.build(env, ret_name.clone())?;
             if let Expr::Return(_) = stmt.0.1 {
                 ret = Some((r, stmt.2.clone()));
                 break
