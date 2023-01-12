@@ -14,8 +14,13 @@ fn char_at(arr: &[u8], index: uptr) -> u8 {
     *char
 }
 
+fn char_str(c: u8) -> [u8;1] {
+    *{{&c} as &[u8;1]}
+}
+
 fn main(){
-    let c: u8 = char_at(&"hello", 1uptr);
+    let index = 1uptr;
+    let c: u8 = char_at(&"hello", index);
     #[unsafe]
-    printf(&"%d\n", c);
+    printf(&"char at %d: chr(%d) = '%c' -> \"%s\"\n", index, c as u32, c, char_str(c));
 }

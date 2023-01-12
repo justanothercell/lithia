@@ -13,8 +13,18 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
     while iter.elems_left() > 0 {
         match iter.this()? {
             '"' => {
-                let (string, span) = collect_until(&mut iter, true, true, false,
-                                                   |c| c != '"').e_when("tokenizing string literal".to_string())?;
+                let (string, span) = collect_until(&mut iter, true, true,
+                                                   |iter| Ok({
+                                                       if iter.this()? == '"' {
+                                                           let mut escaped = false;
+                                                           let mut i = iter.index;
+                                                           while i > 0 {
+                                                               i -= 1;
+                                                               if iter.get(i).map(|c|c == '\\').unwrap_or(false) { escaped = !escaped; } else { break }
+                                                           }
+                                                           escaped
+                                                       } else { true }
+                                                   })).e_when("tokenizing string literal".to_string())?;
                 tokens.push(TokenType::Literal(Literal::String(unescape_str(&string, &span)?)).at(span));
             }
             '/' => {
@@ -22,13 +32,13 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
                 let r: Result<(), ParseError> = try {
                     match iter.this()? {
                         '/' => {
-                            let _comment = collect_until(&mut iter, true, true, false,
-                                                         |c| c != '\n').e_when("tokenizing single line comment".to_string())?;
+                            let _comment = collect_until(&mut iter, true, true,
+                                                         |iter| Ok(iter.this().map(|c| c != '\n').unwrap_or(false))).e_when("tokenizing single line comment".to_string())?;
                         },
                         '*' => {
                             loop {
-                                let _comment = collect_until(&mut iter, true, true, false,
-                                                             |c| c != '*').e_when("tokenizing single line comment".to_string())?;
+                                let _comment = collect_until(&mut iter, true, true,
+                                                             |iter| Ok(iter.this()? != '*')).e_when("tokenizing single line comment".to_string())?;
                                 iter.next();
                                 if iter.this()? == '/' {
                                     break
@@ -46,8 +56,8 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
                 r.e_when(String::from("tokenizing comment"))?;
             }
             '\'' => {
-                let (char_src, span) = collect_until(&mut iter, true, true, false,
-                                                     |c| c != '\'').e_when("tokenizing char literal".to_string())?;
+                let (char_src, span) = collect_until(&mut iter, true, true,
+                                                     |iter| Ok(iter.this()? != '\'')).e_when("tokenizing char literal".to_string())?;
                 if char_src.len() != 1 {
                     return Err(ParseET::TokenizationError(format!("Expected char, found: '{}'", char_src)).at(span))
                 }
@@ -58,8 +68,8 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
                 // pass
             }
             c if c.is_ascii_alphabetic() || c == '_' => {
-                let (ident, span) = collect_until(&mut iter, false, false, true,
-                                                  |c| c.is_ascii_alphanumeric() || c == '_').e_when("tokenizing identifier".to_string())?;
+                let (ident, span) = collect_until(&mut iter, false, false,
+                                                  |iter| Ok({let c = iter.this()?; c.is_ascii_alphanumeric() || c == '_'})).e_when("tokenizing identifier".to_string())?;
                 tokens.push(match ident {
                     ident if &ident == "true" => TokenType::Literal(Literal::Bool(true)),
                     ident if &ident == "false" => TokenType::Literal(Literal::Bool(false)),
@@ -67,10 +77,8 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
                 }.at(span));
             }
             c if c.is_ascii_digit() => {
-                iter.index -= 1;
-                let (num, span) = collect_until(&mut iter, true, true, true,
-                                                |c| c.is_ascii_alphanumeric() || c == '_').e_when("tokenizing number literal".to_string())?;
-                iter.index -= 1;
+                let (num, span) = collect_until(&mut iter, false, false,
+                                                |iter| Ok({let c = iter.this()?; c.is_ascii_alphanumeric() || c == '_'})).e_when("tokenizing number literal".to_string())?;
                 let (lit, ty) = str_to_num_lit(num).e_at(span.clone())?;
                 tokens.push(TokenType::Literal(Literal::Number(lit, ty)).at(span));
             }
@@ -83,22 +91,15 @@ pub(crate) fn tokenize(source: Source) -> Result<Vec<Token>, ParseError>{
     Ok(tokens)
 }
 
-fn collect_until(iter: &mut SourceIter, skip_first: bool, consume_break: bool, allow_eof: bool, cond: fn(char) -> bool) -> Result<(String, Span), ParseError>{
+fn collect_until(iter: &mut SourceIter, skip_first: bool, consume_break: bool, cond: fn(&mut SourceIter) -> Result<bool, ParseError>) -> Result<(String, Span), ParseError>{
     let mut start = iter.here();
     let mut result = String::new();
     if skip_first {
         iter.next();
     }
-    if !allow_eof {
-        while cond(iter.this()?) {
-            result.push(iter.this()?);
-            iter.next();
-        }
-    } else {
-        while iter.this().map(|x| cond(x)).unwrap_or(false) {
-            result.push(iter.this()?);
-            iter.next();
-        }
+    while cond(iter)? {
+        result.push(iter.this()?);
+        iter.next();
     }
     if consume_break {
         iter.next();
