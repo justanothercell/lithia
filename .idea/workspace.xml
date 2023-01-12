@@ -15,16 +15,7 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7d76083a-46e7-4914-8e87-b068d29779f6" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.bc" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.bc" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.exe" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.exe" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.li" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.li" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/testing/hello_world.ll" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/hello_world.ll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast/code_printer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/code_printer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" afterDir="false" />
-    </list>
+    <list default="true" id="7d76083a-46e7-4914-8e87-b068d29779f6" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -145,7 +136,7 @@
       <workItem from="1673432636082" duration="4241000" />
       <workItem from="1673440709570" duration="4038000" />
       <workItem from="1673466909193" duration="3545000" />
-      <workItem from="1673521775567" duration="2158000" />
+      <workItem from="1673521775567" duration="2234000" />
     </task>
     <servers />
   </component>
