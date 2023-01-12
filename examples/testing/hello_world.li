@@ -22,5 +22,5 @@ fn main(){
     let index = 1uptr;
     let c: u8 = char_at(&"hello", index);
     #[unsafe]
-    printf(&"char at %d: chr(%d) = '%c' -> \"%s\"\n", index, c as u32, c, char_str(c));
+    printf(&"char at %d: chr(%d) = '%c'\n", index, c as u32, c);
 }

@@ -1,4 +1,7 @@
 use std::fmt::{Display, Formatter};
+use crate::ast::code_printer::CodePrinter;
+use crate::ast::Type;
+use crate::ast::types_impl::TySat;
 use crate::source::span::Span;
 use crate::tokens::{Literal, NumLit};
 
@@ -44,9 +47,10 @@ pub(crate) enum ParseET {
     CompilationError(String),
     AlreadyDefinedError(String, String),
     VariableNotFound(String),
-    TypeError(String, String),
+    TypeError(Type, Type),
+    CastError(Type, Type),
     TagError(String),
-    UnsafeError(String)
+    UnsafeError(String),
 }
 
 impl ParseET {
@@ -94,7 +98,8 @@ impl Display for ParseError {
                    format!("Multiple definitions Error:\n    {} {} was already defined",
                    what, name),
                ParseET::VariableNotFound(ident) => format!("Name Error:\n    could not find variable {ident}"),
-               ParseET::TypeError(expected, found) => format!("Type Error:\n    expected {expected} found {found}"),
+               ParseET::TypeError(expected, found) => format!("Type Error:\n    expected {} found {}:", expected.print(), found.print()),
+               ParseET::CastError(expected, found) => format!("Cast Error:\n    cannot cast from {} to {}:", expected.print(), found.print()),
                ParseET::TagError(err) => format!("Compiler Flag Error:\n    {err}"),
                ParseET::UnsafeError(thing) => format!("Unsafe Context Error:\n    cannot use {thing} in safe context.\n    tag the expr or func with #[unsafe]"),
            },

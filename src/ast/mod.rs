@@ -2,6 +2,7 @@ pub(crate) mod parser;
 pub(crate) mod patterns;
 pub(crate) mod code_printer;
 pub(crate) mod create_patterns;
+pub(crate) mod types_impl;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -109,21 +110,12 @@ pub(crate) enum Ty {
     Tuple(Vec<Type>),
     Signature(Vec<Type>, Box<Type>, Self::unsafe_func, Self::vararg_func)
 }
+
 impl Ty {
     #[allow(non_camel_case_types)]
     type unsafe_func = bool;
     #[allow(non_camel_case_types)]
     type vararg_func = bool;
-    pub(crate) fn empty() -> Self{
-        Ty::Tuple(vec![])
-    }
-    pub(crate) fn is_empty(&self) -> bool {
-        if let Ty::Tuple(ty) = self {
-            ty.len() == 0
-        } else {
-            false
-        }
-    }
 }
 
 impl AstLiteral {

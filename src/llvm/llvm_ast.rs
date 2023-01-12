@@ -4,6 +4,7 @@ use llvm_sys::prelude::{LLVMTypeRef};
 use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, Module, Ty, Type};
 use crate::{c_str_ptr};
 use crate::ast::code_printer::CodePrinter;
+use crate::ast::types_impl::TySat;
 use crate::error::{OnParseErr, ParseError, ParseET};
 use crate::llvm::{LLVMModGenEnv, Variable};
 use crate::source::span::Span;
@@ -53,7 +54,7 @@ impl Const {
             } else {
                 return Err(ParseET::CompilationError(format!("constant can only be initialized by literal pointer, found {}", self.print())).at(self.val.2.clone()).when("compiling constant"))
             };
-            val.ast_type.satisfies_or_err(&self.ty)?;
+            val.ast_type.satisfies_or_err(&self.ty, TySat::Yes)?;
             core::LLVMSetInitializer(v, val.llvm_value);
             env.globals.insert(self.name.0.to_string(), Variable {
                 ast_type: self.ty.clone(),
@@ -116,7 +117,7 @@ impl Func {
             .collect::<Result<Vec<()>, ParseError>>()?;
         let (ret, ret_loc) = body.build(env, None)?;
         env.pop_stack();
-        ret.ast_type.satisfies_or_err(&self.ret).e_at_add(ret_loc)?;
+        ret.ast_type.satisfies_or_err(&self.ret, TySat::Yes).e_at_add(ret_loc)?;
         unsafe {
             if ret.ast_type.0.is_empty() {
                 core::LLVMBuildRetVoid(env.builder);
@@ -152,7 +153,7 @@ impl Expression {
                 Expr::Deref(expr) => {
                     let v = expr.build(env, None)?;
                     if let Ty::RawPointer = &v.ast_type.0 {
-                        return Err(ParseET::TypeError("pointer".to_string(), "raw pointer".to_string()).at(self.2.clone()).when("compiling deref"))
+                        return Err(ParseET::TypeError(T.to_string(), v.ast_type).at(self.2.clone()).when("compiling deref"))
                     }
                     let inner_ty = if let Ty::Pointer(box ty) = &v.ast_type.0 { ty } else {
                         return Err(ParseET::TypeError("pointer".to_string(), v.ast_type.print()).at(self.2.clone()).when("compiling deref"))
@@ -182,7 +183,7 @@ impl Expression {
                         }
                         let mut llvm_args = args.iter().zip(arg_types)
                             .map(|(expr, t)| expr.build(env, None).map(|v| {
-                                v.ast_type.satisfies_or_err(&t).e_at_add(expr.2.clone())?;
+                                v.ast_type.satisfies_or_err(&t, TySat::Yes).e_at_add(expr.2.clone())?;
                                 Ok(v.llvm_value)
                             }).flatten())
                             .collect::<Result<Vec<_>, _>>()?;
@@ -206,12 +207,16 @@ impl Expression {
                     let v = expr.build(env, Some(name.0.clone()))?;
                     env.stack.last_mut().unwrap().vars.insert(name.0.clone(), v.clone());
                     if let Some(t) = &ty {
-                        v.ast_type.satisfies_or_err(t)?;
+                        v.ast_type.satisfies_or_err(t, TySat::Yes)?;
                     }
                     v
                 }
                 Expr::Cast(expr, target_t) => {
                     let v = expr.build(env, None)?;
+                    let sat = v.ast_type.satisfies(target_t);
+                    if sat != TySat::Cast && sat != TySat::CastUnsafe {
+                        return Err(ParseET::CastError(v.ast_type, target_t.clone()).at(target_t.1.clone()))
+                    }
                     let llvm_type = target_t.llvm_type(env)?;
                     let op_code = core::LLVMGetCastOpcode(v.llvm_value, false as LLVMBool, llvm_type, false as LLVMBool);
                     Variable {
@@ -306,63 +311,33 @@ impl Type {
 }
 
 impl AstLiteral {
-    pub(crate) fn llvm_literal(&self, env: &mut LLVMModGenEnv) -> Result<Variable, ParseError>{
-        Ok(Variable{
+    pub(crate) fn llvm_literal(&self, env: &mut LLVMModGenEnv) -> Result<Variable, ParseError> {
+        Ok(Variable {
             ast_type: self.get_type()?,
             llvm_type: self.get_type()?.llvm_type(env)?,
             llvm_value: unsafe {
-            match &self.0 {
-                Literal::String(s) => AstLiteral::llvm_literal(
-                    &AstLiteral(Literal::Array(
-                        {
-                            let mut s = s.clone();
-                            s.push('\0');
-                            s.chars().map(|c| AstLiteral(Literal::Char(c), self.1.clone())).collect()
-                        },
-                        Type(Ty::Single(vec![], Item::new(&vec!["u8"], self.1.clone())), self.1.clone()),
-                        s.len() + 1), self.1.clone()), env)?.llvm_value,
-                Literal::Char(c) => core::LLVMConstInt(core::LLVMInt8Type(), *c as u8 as c_ulonglong, false as LLVMBool),
-                Literal::Number(NumLit::Integer(num), _) => {
-                    core::LLVMConstInt( self.get_type()?.llvm_type(env)?, *num as u8 as c_ulonglong, false as LLVMBool)
+                match &self.0 {
+                    Literal::String(s) => AstLiteral::llvm_literal(
+                        &AstLiteral(Literal::Array(
+                            {
+                                let mut s = s.clone();
+                                s.push('\0');
+                                s.chars().map(|c| AstLiteral(Literal::Char(c), self.1.clone())).collect()
+                            },
+                            Type(Ty::Single(vec![], Item::new(&vec!["u8"], self.1.clone())), self.1.clone()),
+                            s.len() + 1), self.1.clone()), env)?.llvm_value,
+                    Literal::Char(c) => core::LLVMConstInt(core::LLVMInt8Type(), *c as u8 as c_ulonglong, false as LLVMBool),
+                    Literal::Number(NumLit::Integer(num), _) => {
+                        core::LLVMConstInt(self.get_type()?.llvm_type(env)?, *num as u8 as c_ulonglong, false as LLVMBool)
+                    }
+                    Literal::Bool(b) => core::LLVMConstInt(core::LLVMInt1Type(), *b as c_ulonglong, false as LLVMBool),
+                    Literal::Array(arr, elem_ty, len) =>
+                        core::LLVMConstArray(elem_ty.llvm_type(env)?,
+                                             arr.iter().map(|e| e.llvm_literal(env).map(|v| v.llvm_value)).collect::<Result<Vec<_>, ParseError>>()?.as_mut_ptr(),
+                                             *len as c_uint),
+                    _ => unimplemented!("ty to llvm ty")
                 }
-                Literal::Bool(b) => core::LLVMConstInt(core::LLVMInt1Type(), *b as c_ulonglong, false as LLVMBool),
-                Literal::Array(arr, elem_ty , len) =>
-                    core::LLVMConstArray(elem_ty.llvm_type(env)?,
-                                         arr.iter().map(|e|e.llvm_literal(env).map(|v|v.llvm_value)).collect::<Result<Vec<_>, ParseError>>()?.as_mut_ptr(),
-                                         *len as c_uint),
-                _ => unimplemented!("ty to llvm ty")
             }
-        }})
-    }
-}
-
-impl Type {
-    pub(crate) fn satisfies(&self, other: &Type) -> bool {
-        if self == other { true } else {
-            match (&self.0, &other.0) {
-                (Ty::Single(_, t1), Ty::Single(_, t2)) => t1 == t2,
-                (Ty::RawPointer, Ty::RawPointer) => true,
-                (Ty::Pointer(t1), Ty::Pointer(t2)) => t1.satisfies(t2),
-                    (Ty::Pointer(_t), Ty::RawPointer) => true, // pointer satisfies raw pointer
-                (Ty::Array(t1, l1), Ty::Array(t2, l2)) => t1.satisfies(t2) && l1 == l2,
-                    (Ty::Array(t1, _l1), Ty::Slice(t2)) => t1.satisfies(t2), // array satisfies slice
-                (Ty::Slice(t1), Ty::Slice(t2)) => t1.satisfies(t2),
-                (Ty::Tuple(t1), Ty::Tuple(t2)) => t1.iter().zip(t2).all(|(t1, t2)|t1.satisfies(t2)),
-                (Ty::Signature(a1, r1, unsafe_fn1, vararg1), Ty::Signature(a2, r2, unsafe_fn2, vararg2)) =>
-                    ((a1.len() == a2.len() && vararg1 == vararg2) || *vararg2) &&
-                    a1.iter().zip(a2).all(|(t1, t2) | t1.satisfies(t2)) &&
-                    r1.satisfies(r2) &&
-                    (unsafe_fn1 == unsafe_fn2 || !*unsafe_fn2),
-                _ => false
-            }
-        }
-    }
-
-    pub(crate) fn satisfies_or_err(&self, other: &Type) -> Result<(), ParseError> {
-        if self.satisfies(other) {
-            Ok(())
-        } else {
-            Err(ParseET::TypeError(other.print(), self.print()).ats(vec![self.1.clone(), other.1.clone()]))
-        }
+        })
     }
 }
