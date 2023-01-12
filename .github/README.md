@@ -11,7 +11,7 @@ for your platform are missing tools such as `llvm-config`.exe.<br>
 
 ## Notes To Self For Future On Current Work (NTSFFOCW)
 - casts:<br>
-  - cast between num types is safe (cause that's normal casts)
+  - cast between num types (both float and int, and also bool) is safe (cause that's normal casts)
   - cast from ptr to raw ptr is implicit
   - cast from raw ptr to ptr is unsafe (cause information is not available)
   - cast from &array to &slice is implicit
