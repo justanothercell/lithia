@@ -1,8 +1,9 @@
 use std::cmp::{min, Ordering};
 use std::ops::{BitAnd, BitOr};
-use crate::ast::{Ty, Type};
+use crate::ast::{Item, Ty, Type};
 use crate::ast::code_printer::CodePrinter;
 use crate::error::{ParseError, ParseET};
+use crate::source::span::Span;
 
 #[derive(Eq, PartialEq, PartialOrd, Clone, Debug)]
 #[repr(u8)]
@@ -42,6 +43,9 @@ impl Ord for TySat {
 }
 
 impl Type {
+    pub(crate) fn placeholder(loc: Span) -> Self {
+        Type(Ty::Single(vec![], Item::placeholder(loc.clone())), loc)
+    }
     pub(crate) fn satisfies(&self, other: &Type) -> TySat {
         if self == other { TySat::Yes } else {
             match (&self.0, &other.0) {
@@ -68,7 +72,7 @@ impl Type {
         if s == sat {
             Ok(())
         } else {
-            Err(ParseET::TypeError(other.print(), self.print(), s, sat).ats(vec![self.1.clone(), other.1.clone()]))
+            Err(ParseET::TypeError(other.clone(), self.clone()).ats(vec![self.1.clone(), other.1.clone()]))
         }
     }
 }

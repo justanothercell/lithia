@@ -153,10 +153,10 @@ impl Expression {
                 Expr::Deref(expr) => {
                     let v = expr.build(env, None)?;
                     if let Ty::RawPointer = &v.ast_type.0 {
-                        return Err(ParseET::TypeError(T.to_string(), v.ast_type).at(self.2.clone()).when("compiling deref"))
+                        return Err(ParseET::TypeError(Type(Ty::Pointer(Box::new(Type::placeholder(self.2.clone()))), self.2.clone()), v.ast_type).at(self.2.clone()).when("compiling deref"))
                     }
                     let inner_ty = if let Ty::Pointer(box ty) = &v.ast_type.0 { ty } else {
-                        return Err(ParseET::TypeError("pointer".to_string(), v.ast_type.print()).at(self.2.clone()).when("compiling deref"))
+                        return Err(ParseET::TypeError(Type(Ty::Pointer(Box::new(Type::placeholder(self.2.clone()))), self.2.clone()), v.ast_type).at(self.2.clone()).when("compiling deref"))
                     };
                     let llvm_ty = inner_ty.llvm_type(env)?;
                     let deref = core::LLVMBuildLoad2(env.builder, llvm_ty, v.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
@@ -200,7 +200,7 @@ impl Expression {
                             llvm_value: out,
                         }
                     } else {
-                        return Err(ParseET::TypeError("function".to_string(), format!("{:?}", var.ast_type.0)).at(self.2.clone()).when("compiling expression"))
+                        return Err(ParseET::TypeError(Type(Ty::Signature(vec![], Box::new(Type::placeholder(self.2.clone())), false, false), self.2.clone()), var.ast_type).at(self.2.clone()).when("compiling expression"))
                     }
                 },
                 Expr::VarCreate(name, mutable, ty, expr) => {

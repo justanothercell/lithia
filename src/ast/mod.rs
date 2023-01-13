@@ -19,6 +19,10 @@ impl Item{
     pub(crate) fn new(parts: &Vec<&str>, loc: Span) -> Self {
         Self(parts.iter().map(|p| Ident(p.to_string(), loc.clone())).collect(), loc.clone())
     }
+
+    pub(crate) fn placeholder(loc: Span) -> Self{
+        Self::new(&vec!["_"], loc)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -27,5 +27,6 @@ for your platform are missing tools such as `llvm-config`.exe.<br>
 - https://alive2.llvm.org/ce/ llvm ir analyzer
 
 ## Topics
+#### [The Booklet](./booklet/README.md)
 #### [Structure & Design](./structure_design.md)
 #### [Legacy Projects](./legacy.md) including Lithia-C#.net
