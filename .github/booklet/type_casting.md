@@ -21,6 +21,7 @@ ex.: `table[2][1]` means "from Int to Float"
 - `bool` counts as `Int` for this table
 - All casts assume same size. Use RawPtr to get around that
 - Ref and deref is not looked at in this table, as those have a different functionality than just "interpretation as different type"
+- A == B is always `A`
 - The diagonals assume "T of Foo" and "T of Bar" where Sizeof(Foo) == Sizeof(Bar) and Foo != Bar.
 The `...` means to look at the rules of the "inner" type
 - `SameSize` overrules `_`
