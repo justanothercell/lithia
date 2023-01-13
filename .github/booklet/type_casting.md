@@ -24,7 +24,7 @@ ex.: `table[2][1]` means "from Int to Float"
 - A == B is always `A`
 - The diagonals assume "T of Foo" and "T of Bar" where Sizeof(Foo) == Sizeof(Bar) and Foo != Bar.
 The `...` means to look at the rules of the "inner" type
-- `SameSize` overrules `_`
+- `SameSize` overrules `-`
 
 |          | Int | Float | Ptr | RawPtr | Array | Slice | SameSize |
 |----------|-----|-------|-----|--------|-------|-------|----------|
