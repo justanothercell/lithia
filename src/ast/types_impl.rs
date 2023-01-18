@@ -54,10 +54,14 @@ impl Type {
                 } else { TySat::Cast },
                 (Ty::RawPointer, Ty::RawPointer) => TySat::Yes,
                 (Ty::Pointer(t1), Ty::Pointer(t2)) => t1.satisfies(t2),
-                (Ty::Pointer(_t), Ty::RawPointer) => TySat::Yes, // pointer satisfies raw pointer
+                (Ty::Pointer(_), Ty::RawPointer) => TySat::Yes,
+                (Ty::RawPointer, Ty::Pointer(_)) => TySat::CastUnsafe,
+                (Ty::Pointer(_)|Ty::RawPointer, Ty::Single(generics, name)) if generics.len() == 0 && name == &Item::new(&vec!["uptr"], self.1.clone()) => TySat::CastUnsafe,
+                (Ty::Single(generics, name), Ty::Pointer(_)|Ty::RawPointer) if generics.len() == 0 && name == &Item::new(&vec!["uptr"], self.1.clone()) => TySat::CastUnsafe,
                 (Ty::Array(t1, l1), Ty::Array(t2, l2)) => t1.satisfies(t2).and(l1 == l2),
                 (Ty::Array(t1, _l1), Ty::Slice(t2)) => t1.satisfies(t2), // array satisfies slice
                 (Ty::Slice(t1), Ty::Slice(t2)) => t1.satisfies(t2),
+                (Ty::Slice(t1), Ty::Array(t2, _)) => t1.satisfies(t2) & TySat::CastUnsafe,
                 (Ty::Tuple(t1), Ty::Tuple(t2)) => t1.iter().zip(t2).fold(TySat::Yes, |acc, (t1, t2)| acc & t1.satisfies(t2)),
                 (Ty::Signature(a1, r1, unsafe_fn1, vararg1), Ty::Signature(a2, r2, unsafe_fn2, vararg2)) =>
                         a1.iter().zip(a2).fold(TySat::Yes, |acc, (t1, t2) | acc & t1.satisfies(t2)).and((a1.len() == a2.len() && vararg1 == vararg2) || *vararg2)

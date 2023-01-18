@@ -3,7 +3,7 @@ use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const
 use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk, Optional};
 use crate::ast::patterns::dynamic::{Latent, Mapping};
-use crate::ast::patterns::simple::{ExpectIdent, ExpectParticle, ExpectParticleExact, GetIdent, GetLiteral, GetNext};
+use crate::ast::patterns::simple::{ExpectIdent, ExpectParticle, ExpectParticleExact, GetGluedParticle, GetIdent, GetLiteral, GetNext, GetParticle};
 use crate::error::{ParseET};
 use crate::source::span::Span;
 use crate::tokens::{Literal, NumLit, NumLitTy};
@@ -22,7 +22,8 @@ pub(crate) fn build_patterns() -> Patterns {
                   ),
               ),
         |(ident, mut vec), loc| {vec.insert(0, ident); Item(vec, loc)});
-
+    let particle_chain = (GetParticle, While(GetGluedParticle.pat(), GetGluedParticle.pat()))
+        .map(|((p, _), mut pv), _| {pv.insert(0, p); pv}).pat();
     let (type_pat, type_finalizer) = Latent::new();
     type_finalizer.finalize(Pattern::named("type", Match(vec![
         (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'),
@@ -48,7 +49,7 @@ pub(crate) fn build_patterns() -> Patterns {
                     Ok(Ty::Slice(Box::new(ty)))
                 }
             }).pat()),
-        (Succeed(item.clone()).pat(), item.clone().map(|item, _| Ty::Single(vec![], item)).pat()),
+        (Succeed(item.clone().map_res(|t, loc| if t == Item::new(&vec!["as"], loc){Err(ParseET::ParsingError(String::new()).error())} else {Ok(())}).pat()).pat(), item.clone().map(|item, _| Ty::Single(vec![], item)).pat()),
     ]), |ty, loc| Type(ty, loc)));
     let (tag_args, tag_arg_finalizer) = Latent::new();
     let tag = Pattern::inline((
@@ -120,6 +121,7 @@ pub(crate) fn build_patterns() -> Patterns {
         tags.clone(),
         Match(vec![
             (ExpectParticle('{').pat(), block.clone().map(|block, _| Expr::Block(block)).pat()),
+            (ExpectParticle('(').pat(), (ExpectParticle('('), expression.clone(), ExpectParticle(')')).map(|(_, expr, _), _| Expr::Expr(Box::new(expr))).pat()),
             (Succeed((item.clone(), ExpectParticle('(')).pat()).pat(), function_call.clone()),
             (ExpectIdent("let".to_string()).pat(), let_create.clone()),
             (ExpectParticle('&').pat(), (ExpectParticle('&'), expression.clone()).map(|(_, expr), _| Expr::Point(Box::new(expr))).pat()),

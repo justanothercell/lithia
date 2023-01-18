@@ -8,14 +8,10 @@ fn puts(msg: &) -> i32;
 fn printf(fmt: &[u8]) -> i32;
 
 fn char_at(arr: &[u8], index: uptr) -> u8 {
-    //*#[unsafe]{arr as uptr as &u8}
-    let ptr = #[unsafe]{arr as uptr};
-    let char = ptr as &u8;
+    let start_ptr = #[unsafe](arr as uptr);
+    //let idx_ptr = start_ptr + index;
+    let char = #[unsafe](start_ptr as &u8);
     *char
-}
-
-fn char_str(c: u8) -> [u8;1] {
-    *{{&c} as &[u8;1]}
 }
 
 fn main(){

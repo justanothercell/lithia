@@ -100,6 +100,7 @@ impl CodePrinter for Expression {
         format!("{}{}", if self.0.len() > 0 { format!("{}\n", self.0.print()) } else { String::new() },
                 match &self.1 {
             Expr::FuncCall(ident, args) => format!("{}({})", ident.print(), args.iter().map(|e|e.print()).collect::<Vec<_>>().join(", ")),
+            Expr::Expr(expr) => format!("({})", expr.print()),
             Expr::Point(expr) => format!("&{}", expr.print()),
             Expr::Deref(expr) => format!("*{}", expr.print()),
             Expr::Cast(expr, ty) => format!("{} as {}", expr.print(), ty.print()),

@@ -139,6 +139,7 @@ impl Expression {
         }
         let r = unsafe {
             Ok(match &self.1 {
+                Expr::Expr(box expr) => expr.build(env, ret_name)?,
                 Expr::Literal(lit) => lit.llvm_literal(env)?,
                 Expr::Point(expr) => {
                     let v = expr.build(env, None)?;
@@ -215,7 +216,10 @@ impl Expression {
                     let v = expr.build(env, None)?;
                     let sat = v.ast_type.satisfies(target_t);
                     if sat != TySat::Cast && sat != TySat::CastUnsafe {
-                        return Err(ParseET::CastError(v.ast_type, target_t.clone()).at(target_t.1.clone()))
+                        return Err(ParseET::CastError(v.ast_type, target_t.clone()).at(self.2.clone()))
+                    }
+                    if sat == TySat::CastUnsafe && !env.stack.last().unwrap().unsafe_ctx {
+                        return Err(ParseET::UnsafeError("unsafe cast".to_string()).at(self.2.clone()))
                     }
                     let llvm_type = target_t.llvm_type(env)?;
                     let op_code = core::LLVMGetCastOpcode(v.llvm_value, false as LLVMBool, llvm_type, false as LLVMBool);
@@ -290,7 +294,7 @@ impl Type {
                                 let t = core::LLVMInt64Type();
                             t
                         }
-                        _ => unimplemented!("primitive type not figured out yet, come back tomorrow")
+                        t => unimplemented!("primitive type '{}' not figured out yet, come back tomorrow", t)
                     }
                 }
                 Ty::RawPointer => core::LLVMPointerType(core::LLVMVoidType(), 0), // TODO: replace 0 with adapting value

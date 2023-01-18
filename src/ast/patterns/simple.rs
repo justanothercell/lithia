@@ -107,7 +107,20 @@ impl Consumer for GetParticle {
         }
     }
 }
+pub(crate) struct GetGluedParticle;
+impl Consumer for GetGluedParticle {
+    type Output = char;
 
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
+        let Token { tt, loc } = iter.this()?;
+        if let TokenType::Particle(p, true) = tt {
+            iter.next();
+            Ok(p)
+        } else {
+            Err(ParseET::ParsingError(format!("expected glued Particle, found {:?}", tt)).at(loc))
+        }
+    }
+}
 pub(crate) struct ExpectLiteral(pub(crate) Literal);
 impl Consumer for ExpectLiteral {
     type Output = ();

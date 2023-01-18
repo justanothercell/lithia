@@ -47,6 +47,7 @@ pub(crate) enum Expr {
     Literal(AstLiteral),
     Variable(Ident),
     Block(Block),
+    Expr(Box<Expression>),
     FuncCall(Item, Vec<Expression>),
     BinaryOp(Operator, Box<Expression>, Box<Expression>),
     UnaryOp(Operator, Box<Expression>),
