@@ -67,6 +67,8 @@ pub(crate) enum Op {
     And,
     Or,
     Not,
+    BinOr,
+    BinAnd,
     LShift,
     RShift,
 }

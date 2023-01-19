@@ -130,9 +130,11 @@ impl CodePrinter for Operator {
             Op::Sub => "-",
             Op::Mul => "*",
             Op::Div => "/",
-            Op::And => "&&",
-            Op::Or => "||",
+            Op::And => "&",
+            Op::Or => "|",
             Op::Not => "!",
+            Op::BinAnd => "&&",
+            Op::BinOr => "||",
             Op::LShift => "<<",
             Op::RShift => ">>",
         }.to_string()

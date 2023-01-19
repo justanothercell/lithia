@@ -7,16 +7,21 @@ fn puts(msg: &) -> i32;
 #[extern("C")]
 fn printf(fmt: &[u8]) -> i32;
 
-fn char_at(arr: &[u8], index: uptr) -> u8 {
-    let start_ptr = #[unsafe](arr as uptr);
-    //let idx_ptr = start_ptr + index;
-    let char = #[unsafe](start_ptr as &u8);
+fn char_at(string: &[u8], index: uptr) -> u8 {
+    let start_ptr = string #[unsafe] as uptr;
+    let idx_ptr = start_ptr + index;
+    let char = idx_ptr #[unsafe] as &u8;
     *char
+}
+
+fn compact_char_at(string: &[u8], index: uptr) -> u8 {
+    *#[unsafe]((string as uptr + index) as &u8)
 }
 
 fn main(){
     let index = 1uptr;
-    let c: u8 = char_at(&"hello", index);
+    let string = &"hello";
+    let c: u8 = compact_char_at(string, index);
     #[unsafe]
-    printf(&"char at %d: chr(%d) = '%c'\n", index, c as u32, c);
+    printf(&"char at index %d of \"%s\": chr(%d) = '%c'\n", index, string, c as u32, c);
 }

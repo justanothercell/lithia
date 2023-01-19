@@ -1,7 +1,7 @@
 use std::ffi::{c_uint, c_ulonglong};
-use llvm_sys::{prelude::LLVMBool, prelude, core};
+use llvm_sys::{prelude::LLVMBool, prelude, core, LLVMOpcode};
 use llvm_sys::prelude::{LLVMTypeRef};
-use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, Module, Ty, Type};
+use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, Module, Op, Ty, Type};
 use crate::{c_str_ptr};
 use crate::ast::code_printer::CodePrinter;
 use crate::ast::types_impl::TySat;
@@ -229,7 +229,32 @@ impl Expression {
                         llvm_value: core::LLVMBuildCast(env.builder, op_code, v.llvm_value, llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new()))),
                     }
                 }
-                //Expr::BinaryOp(_, _, _) => {}
+                Expr::BinaryOp(op, a, b) => {
+                    let va = a.build(env, None)?;
+                    let vb = b.build(env, None)?;
+                    if va.ast_type != va.ast_type {
+                        return Err(ParseET::TypeError(va.ast_type.clone(), vb.ast_type.clone()).ats(vec![va.ast_type.1.clone(), vb.ast_type.1.clone()]))
+                    }
+                    let op = match &op.0 {
+                        Op::Add => LLVMOpcode::LLVMAdd,
+                        Op::Sub => LLVMOpcode::LLVMSub,
+                        Op::Mul => LLVMOpcode::LLVMMul,
+                        Op::Div => LLVMOpcode::LLVMUDiv,
+                        Op::Or => LLVMOpcode::LLVMOr,
+                        Op::And => LLVMOpcode::LLVMAnd,
+                        Op::BinOr => LLVMOpcode::LLVMOr,
+                        Op::BinAnd => LLVMOpcode::LLVMAnd,
+                        Op::LShift => LLVMOpcode::LLVMShl,
+                        Op::RShift => LLVMOpcode::LLVMAShr, // A stands for Arithmetic and L stands for logical, see: https://stackoverflow.com/questions/141525/what-are-bitwise-shift-bit-shift-operators-and-how-do-they-work
+                        invalid => panic!("didnt expect op {invalid:?}")
+                    };
+                    let r = core::LLVMBuildBinOp(env.builder, op, va.llvm_value, vb.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
+                    Variable {
+                        ast_type: va.ast_type,
+                        llvm_type: va.llvm_type,
+                        llvm_value: r,
+                    }
+                }
                 //Expr::UnaryOp(_, _) => {}
                 //Expr::VarAssign(_, _, _) => {}
                 _ => unimplemented!()

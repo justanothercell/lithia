@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const, AstLiteral, TagValue, Tag};
+use crate::ast::{Block, Expr, Expression, Type, Func, Item, Statement, Ty, Const, AstLiteral, TagValue, Tag, Operator, Op};
 use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk, Optional};
 use crate::ast::patterns::dynamic::{Latent, Mapping};
@@ -22,8 +22,6 @@ pub(crate) fn build_patterns() -> Patterns {
                   ),
               ),
         |(ident, mut vec), loc| {vec.insert(0, ident); Item(vec, loc)});
-    let particle_chain = (GetParticle, While(GetGluedParticle.pat(), GetGluedParticle.pat()))
-        .map(|((p, _), mut pv), _| {pv.insert(0, p); pv}).pat();
     let (type_pat, type_finalizer) = Latent::new();
     type_finalizer.finalize(Pattern::named("type", Match(vec![
         (Succeed(ExpectParticle('&').pat()).pat(), (ExpectParticle('&'),
@@ -82,6 +80,21 @@ pub(crate) fn build_patterns() -> Patterns {
                                     While(ExpectParticle('#').pat(), full_tag.clone()),
                                     |tags, _| tags.into_iter().map(|tag| (tag
                                                                               .0.0.clone(), tag)).collect::<HashMap<String, Tag>>());
+    let operator = Pattern::named("operator", (
+        GetParticle, Optional(GetGluedParticle.pat(), GetGluedParticle.pat())
+    ).map_res(|((p1, _), p2), loc| Ok(match p2.map(|c| p1.to_string() + &c.to_string()).unwrap_or(p1.to_string()).as_str() {
+        "+" => Op::Add,
+        "-" => Op::Sub,
+        "*" => Op::Mul,
+        "/" => Op::Div,
+        "&" => Op::And,
+        "|" => Op::Or,
+        "&&" => Op::BinAnd,
+        "||" => Op::BinOr,
+        "<<" => Op::LShift,
+        ">>" => Op::RShift,
+        invalid => return Err(ParseET::ParsingError(format!("invalid op {invalid}")).at(loc))
+    })), |op, loc| Operator(op, loc));
     let (expression, expression_finalizer) = Latent::new();
     let let_create = Pattern::named("variable creation", (
         ExpectIdent("let".to_string()),
@@ -130,11 +143,16 @@ pub(crate) fn build_patterns() -> Patterns {
             (Succeed(GetLiteral.pat()).pat(), GetLiteral.map(|lit, loc| Expr::Literal(lit)).pat())
         ]),
         While((tags.clone(), ExpectIdent("as".to_string())).pat(), (tags.clone(), ExpectIdent("as".to_string()), type_pat.clone())
-            .map(|(tags, _, ty), loc|(loc, tags, ty)).pat())
-    ), |(tags, expr, casts), loc| {
-        let mut ex = Expression(tags, expr, loc);
+            .map(|(tags, _, ty), loc|(loc, tags, ty)).pat()
+        ),
+        Optional(operator.clone(), (operator.clone(), expression.clone()).pat())
+    ), |(tags, expr, casts, op), loc| {
+        let mut ex = Expression(tags, expr, loc.clone());
         for (loc, tags, cast) in casts {
             ex = Expression(tags, Expr::Cast(Box::new(ex), cast), loc);
+        }
+        if let Some(op) = op {
+            ex = Expression(HashMap::new(), Expr::BinaryOp(op.0, Box::new(ex), Box::new(op.1)), loc)
         }
         ex
     }));

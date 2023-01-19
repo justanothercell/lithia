@@ -75,6 +75,7 @@ impl Consumer for ExpectParticle {
         }
     }
 }
+
 pub(crate) struct ExpectParticleExact(pub(crate) char, pub(crate) glued);
 impl Consumer for ExpectParticleExact {
     type Output = ();
