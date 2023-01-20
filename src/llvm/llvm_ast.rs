@@ -1,5 +1,5 @@
 use std::ffi::{c_uint, c_ulonglong};
-use llvm_sys::{prelude::LLVMBool, prelude, core, LLVMOpcode};
+use llvm_sys::{prelude::LLVMBool, prelude, core, LLVMOpcode, LLVMIntPredicate};
 use llvm_sys::prelude::{LLVMTypeRef};
 use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, Module, Op, Ty, Type};
 use crate::{c_str_ptr};
@@ -7,6 +7,7 @@ use crate::ast::code_printer::CodePrinter;
 use crate::ast::types_impl::TySat;
 use crate::error::{OnParseErr, ParseError, ParseET};
 use crate::llvm::{LLVMModGenEnv, Variable};
+use crate::llvm::gen_flow_expressions::compile_if;
 use crate::source::span::Span;
 use crate::tokens::{Literal, NumLit};
 
@@ -235,28 +236,51 @@ impl Expression {
                     if va.ast_type != va.ast_type {
                         return Err(ParseET::TypeError(va.ast_type.clone(), vb.ast_type.clone()).ats(vec![va.ast_type.1.clone(), vb.ast_type.1.clone()]))
                     }
-                    let op = match &op.0 {
-                        Op::Add => LLVMOpcode::LLVMAdd,
-                        Op::Sub => LLVMOpcode::LLVMSub,
-                        Op::Mul => LLVMOpcode::LLVMMul,
-                        Op::Div => LLVMOpcode::LLVMUDiv,
-                        Op::Or => LLVMOpcode::LLVMOr,
-                        Op::And => LLVMOpcode::LLVMAnd,
-                        Op::BinOr => LLVMOpcode::LLVMOr,
-                        Op::BinAnd => LLVMOpcode::LLVMAnd,
-                        Op::LShift => LLVMOpcode::LLVMShl,
-                        Op::RShift => LLVMOpcode::LLVMAShr, // A stands for Arithmetic and L stands for logical, see: https://stackoverflow.com/questions/141525/what-are-bitwise-shift-bit-shift-operators-and-how-do-they-work
+                    let opc = match &op.0 {
+                        Op::Add => Some(LLVMOpcode::LLVMAdd),
+                        Op::Sub => Some(LLVMOpcode::LLVMSub),
+                        Op::Mul => Some(LLVMOpcode::LLVMMul),
+                        Op::Div => Some(LLVMOpcode::LLVMUDiv),
+                        Op::Or => Some(LLVMOpcode::LLVMOr),
+                        Op::And => Some(LLVMOpcode::LLVMAnd),
+                        Op::BinOr => Some(LLVMOpcode::LLVMOr),
+                        Op::BinAnd => Some(LLVMOpcode::LLVMAnd),
+                        Op::LShift => Some(LLVMOpcode::LLVMShl),
+                        Op::RShift => Some(LLVMOpcode::LLVMAShr), // A stands for Arithmetic and L stands for logical, see: https://stackoverflow.com/questions/141525/what-are-bitwise-shift-bit-shift-operators-and-how-do-they-work
+                        Op::LT => None,
+                        Op::LE => None,
+                        Op::GT => None,
+                        Op::GE => None,
+                        Op::EQ => None,
+                        Op::NE => None,
                         invalid => panic!("didnt expect op {invalid:?}")
                     };
-                    let r = core::LLVMBuildBinOp(env.builder, op, va.llvm_value, vb.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
-                    Variable {
-                        ast_type: va.ast_type,
-                        llvm_type: va.llvm_type,
-                        llvm_value: r,
+                    if let Some(op) = opc {
+                        let r = core::LLVMBuildBinOp(env.builder, op, va.llvm_value, vb.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
+                        Variable {
+                            ast_type: va.ast_type,
+                            llvm_type: va.llvm_type,
+                            llvm_value: r,
+                        }
+                    } else {
+                        let r = core::LLVMBuildICmp(env.builder, match &op.0 {
+                            Op::LT => LLVMIntPredicate::LLVMIntSLT,
+                            Op::LE => LLVMIntPredicate::LLVMIntSLE,
+                            Op::GT => LLVMIntPredicate::LLVMIntSGT,
+                            Op::GE => LLVMIntPredicate::LLVMIntSGE,
+                            Op::EQ => LLVMIntPredicate::LLVMIntEQ,
+                            Op::NE => LLVMIntPredicate::LLVMIntNE,
+                            invalid => panic!("didnt expect op {invalid:?}")
+                        }, va.llvm_value, vb.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
+                        let loc = op.1.clone();
+                        Variable {
+                            ast_type: Type(Ty::Single(vec![], Item::new(&vec!["bool"], loc.clone())), loc.clone()),
+                            llvm_type: core::LLVMInt1Type(),
+                            llvm_value: r,
+                        }
                     }
                 }
-                //Expr::UnaryOp(_, _) => {}
-                //Expr::VarAssign(_, _, _) => {}
+                Expr::If(expr, body, else_body) => compile_if(expr, body, else_body, env, ret_name),
                 _ => unimplemented!()
             })
         };
@@ -268,31 +292,29 @@ impl Expression {
 }
 
 impl Block {
-    pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<(Variable, Span), ParseError> {
-        let mut ret = None;
+    /// if returns None -> actually "return"ed and you should treat everything after as dead code
+    pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<Option<(Variable, Span)>, ParseError> {
         for (i, stmt) in self.0.iter().enumerate() {
             let r = stmt.0.build(env, ret_name.clone())?;
             if let Expr::Return(_) = stmt.0.1 {
-                ret = Some((r, stmt.2.clone()));
+                let mut ret = (r, stmt.2.clone());
+                std::mem::swap(&mut ret.0.ast_type.1, &mut ret.1);
                 break
             }
-            if !stmt.1 {
-                ret = Some((r, stmt.2.clone()));
+            if !stmt.1 && !stmt.0.1.is_block_like() {
+                let mut ret = (r, stmt.2.clone());
+                std::mem::swap(&mut ret.0.ast_type.1, &mut ret.1);
                 if self.0.len() != i + 1 {
                     return Err(ParseET::CompilationError(format!("returning expression needs to be at end of block")).at(stmt.2.clone()).when("compiling block"))
                 }
-                break
+                return Ok(Some(ret))
             }
         }
-        ret = ret.map(|(mut v, mut l)| {
-            std::mem::swap(&mut v.ast_type.1, &mut l);
-            (v, l)
-        });
-        unsafe {Ok(ret.unwrap_or_else(||(Variable {
+        unsafe {Ok(Some((Variable {
             ast_type: Type(Ty::Tuple(vec![]), self.1.end().span()),
             llvm_type: core::LLVMVoidType(),
             llvm_value: *[].as_mut_ptr(),
-        }, self.1.end().span())))}
+        }, self.1.clone())))}
     }
 }
 

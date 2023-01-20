@@ -48,12 +48,34 @@ pub(crate) enum Expr {
     Variable(Ident),
     Block(Block),
     Expr(Box<Expression>),
+    If(Box<Expression>, Block, Block),
     FuncCall(Item, Vec<Expression>),
     BinaryOp(Operator, Box<Expression>, Box<Expression>),
     UnaryOp(Operator, Box<Expression>),
     VarCreate(Ident, bool, Option<Type>, Box<Expression>),
     VarAssign(Ident, Option<Operator>, Box<Expression>),
     Return(Option<Box<Expression>>),
+}
+
+impl Expr {
+    pub(crate) fn is_block_like(&self) -> bool {
+        match self {
+            Expr::Point(_) => false,
+            Expr::Deref(_) => false,
+            Expr::Cast(_, _) => false,
+            Expr::Literal(_) => false,
+            Expr::Variable(_) => false,
+            Expr::Block(_) => true,
+            Expr::Expr(_) => false,
+            Expr::If(_, _, _) => true,
+            Expr::FuncCall(_, _) => false,
+            Expr::BinaryOp(_, _, _) => false,
+            Expr::UnaryOp(_, _) => false,
+            Expr::VarCreate(_, _, _, _) => false,
+            Expr::VarAssign(_, _, _) => false,
+            Expr::Return(_) => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,6 +93,12 @@ pub(crate) enum Op {
     BinAnd,
     LShift,
     RShift,
+    LT,
+    LE,
+    GT,
+    GE,
+    EQ,
+    NE,
 }
 
 #[derive(Debug, Clone, PartialEq)]

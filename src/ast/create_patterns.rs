@@ -93,6 +93,12 @@ pub(crate) fn build_patterns() -> Patterns {
         "||" => Op::BinOr,
         "<<" => Op::LShift,
         ">>" => Op::RShift,
+        "<" => Op::LT,
+        "<=" => Op::LE,
+        ">" => Op::GT,
+        ">=" => Op::GE,
+        "==" => Op::EQ,
+        "!=" => Op::NE,
         invalid => return Err(ParseET::ParsingError(format!("invalid op {invalid}")).at(loc))
     })), |op, loc| Operator(op, loc));
     let (expression, expression_finalizer) = Latent::new();
@@ -130,9 +136,20 @@ pub(crate) fn build_patterns() -> Patterns {
     let block = Pattern::inline(    (
             ExpectParticle('{'), block_content.clone(), ExpectParticle('}')
         ), |(_, block, _), _| block);
+    let if_expr = Pattern::named("if", (
+            ExpectIdent("if".to_string()).pat(),
+            expression.clone(),
+            block.clone(),
+            Optional(ExpectIdent("else".to_string()).pat(), (
+                ExpectIdent("else".to_string()).pat(),
+                block.clone(),
+            ).map(|(_, opt_b), _| opt_b).pat())
+        ),|(_, cond, body, opt_else), loc|
+        Expr::If(Box::new(cond), body, opt_else.unwrap_or_else(||Block(vec![], loc))));
     expression_finalizer.finalize(Pattern::named("expression",(
         tags.clone(),
         Match(vec![
+            (ExpectIdent("if".to_string()).pat(), if_expr.clone()),
             (ExpectParticle('{').pat(), block.clone().map(|block, _| Expr::Block(block)).pat()),
             (ExpectParticle('(').pat(), (ExpectParticle('('), expression.clone(), ExpectParticle(')')).map(|(_, expr, _), _| Expr::Expr(Box::new(expr))).pat()),
             (Succeed((item.clone(), ExpectParticle('(')).pat()).pat(), function_call.clone()),

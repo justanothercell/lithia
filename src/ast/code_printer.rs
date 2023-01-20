@@ -118,6 +118,7 @@ impl CodePrinter for Expression {
             Expr::VarAssign(ident, Some(op), expr) => format!("{} {}= {}", ident.print(), op.print(), expr.print()),
             Expr::VarAssign(ident, None, expr) => format!("{} = {};", ident.print(), expr.print()),
             Expr::Block(block) => block.print_indented(),
+            Expr::If(cond, body, else_body) => format!("if {} {} else {}", cond.print(), body.print(), else_body.print()),
             Expr::Return(expr) => match expr { Some(e) => format!("return {}", e.print()), None => format!("return") }
         })
     }
@@ -137,6 +138,12 @@ impl CodePrinter for Operator {
             Op::BinOr => "||",
             Op::LShift => "<<",
             Op::RShift => ">>",
+            Op::LT => "<",
+            Op::LE => "<=",
+            Op::GT => ">",
+            Op::GE => ">=",
+            Op::EQ => "==",
+            Op::NE => "!=",
         }.to_string()
     }
 }
