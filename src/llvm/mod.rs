@@ -6,7 +6,9 @@ use std::collections::HashMap;
 use std::ffi::c_uint;
 
 use llvm_sys::{prelude, core};
+use llvm_sys::prelude::{LLVMTypeRef, LLVMValueRef};
 use crate::ast::Type;
+use crate::ast::types_impl::TySat::No;
 use crate::error::{ParseError, ParseET};
 use crate::source::span::Span;
 
@@ -34,13 +36,21 @@ pub(crate) struct LLVMModGenEnv {
     stack: Vec<StackEnv>,
     mod_name: String,
     module: prelude::LLVMModuleRef,
-    builder: prelude::LLVMBuilderRef
+    builder: prelude::LLVMBuilderRef,
+    function: Option<LLVMValueRef>
 }
 
 pub(crate) struct StackEnv {
     vars: HashMap<String, Variable>,
     opaque: bool,
     unsafe_ctx: bool,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ReturnInfo{
+    variable: Option<Variable>,
+    return_t: Option<(Type, LLVMTypeRef)>,
+    loc: Option<Span>
 }
 
 #[derive(Debug, Clone)]
@@ -68,7 +78,8 @@ impl LLVMModGenEnv{
             stack: vec![],
             mod_name: mod_name.clone(),
             module,
-            builder
+            builder,
+            function: None
         }
     }
 

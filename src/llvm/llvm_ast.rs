@@ -93,6 +93,8 @@ impl Func {
         }
         let body = self.body.as_ref().unwrap();
         let function = env.get_var(&self.name.0, Some(&self.loc))?.llvm_value;
+        let outer_f = env.function;
+        env.function = Some(function);
         let entry_block = unsafe { core::LLVMAppendBasicBlock(function, c_str_ptr!("entry")) };
         let entry_builder = env.builder;
         env.builder = unsafe {
@@ -128,6 +130,7 @@ impl Func {
             core::LLVMDisposeBuilder(env.builder);
         }
         env.builder = entry_builder;
+        env.function = outer_f;
         Ok(())
     }
 }
@@ -280,7 +283,7 @@ impl Expression {
                         }
                     }
                 }
-                Expr::If(expr, body, else_body) => compile_if(expr, body, else_body, env, ret_name),
+                Expr::If(expr, body, else_body) => compile_if(expr, body, else_body, env, ret_name)?,
                 _ => unimplemented!()
             })
         };
@@ -292,14 +295,14 @@ impl Expression {
 }
 
 impl Block {
-    /// if returns None -> actually "return"ed and you should treat everything after as dead code
-    pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<Option<(Variable, Span)>, ParseError> {
+    pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<(Variable, Span), ParseError> {
         for (i, stmt) in self.0.iter().enumerate() {
             let r = stmt.0.build(env, ret_name.clone())?;
             if let Expr::Return(_) = stmt.0.1 {
                 let mut ret = (r, stmt.2.clone());
                 std::mem::swap(&mut ret.0.ast_type.1, &mut ret.1);
-                break
+                ret.ast_type = Type(Ty::Returns(ret.ast_type), self.1.end().span());
+                return Ok(ret)
             }
             if !stmt.1 && !stmt.0.1.is_block_like() {
                 let mut ret = (r, stmt.2.clone());
@@ -307,14 +310,14 @@ impl Block {
                 if self.0.len() != i + 1 {
                     return Err(ParseET::CompilationError(format!("returning expression needs to be at end of block")).at(stmt.2.clone()).when("compiling block"))
                 }
-                return Ok(Some(ret))
+                return Ok(ret)
             }
         }
-        unsafe {Ok(Some((Variable {
+        unsafe {Ok((Variable {
             ast_type: Type(Ty::Tuple(vec![]), self.1.end().span()),
             llvm_type: core::LLVMVoidType(),
             llvm_value: *[].as_mut_ptr(),
-        }, self.1.clone())))}
+        }, self.1.clone()))}
     }
 }
 
@@ -355,7 +358,8 @@ impl Type {
                         core::LLVMVoidType()
                     }
                 },
-                Ty::Signature(_, _, _, _) => unimplemented!("signature types to llvm type not implemented yet")
+                Ty::Signature(_, _, _, _) => unimplemented!("signature types to llvm type not implemented yet"),
+                Ty::Returns(_) => panic!("'returns' is a meta type, cannot create!")
             })
         }
     }

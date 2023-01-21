@@ -70,7 +70,6 @@ impl Type {
             }
         }
     }
-
     pub(crate) fn satisfies_or_err(&self, other: &Type, sat: TySat) -> Result<(), ParseError> {
         let s = self.satisfies(other);
         if s == sat {
@@ -78,6 +77,20 @@ impl Type {
         } else {
             Err(ParseET::TypeError(other.clone(), self.clone()).ats(vec![self.1.clone(), other.1.clone()]))
         }
+    }
+    pub(crate) fn equals_or_err(&self, other: &Type) -> Result<(), ParseError> {
+        if self == other {
+            Ok(())
+        } else {
+            Err(ParseET::TypeError(other.clone(), self.clone()).ats(vec![self.1.clone(), other.1.clone()]))
+        }
+    }
+    pub(crate) fn is_return(&self) -> bool {
+        if let Ty::Returns(_) = &self.0 { true } else { false }
+    }
+
+    pub(crate) fn unwrap_return(self) -> Self {
+        if let Ty::Returns(box ty) = self.0 { ty } else { self }
     }
 }
 

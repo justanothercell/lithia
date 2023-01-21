@@ -137,6 +137,7 @@ pub(crate) struct Const {
 pub(crate) struct Type(pub(crate) Ty, pub(crate) Span);
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Ty {
+    Returns(Box<Type>),
     Single(Vec<Type>, Item),
     RawPointer,
     Pointer(Box<Type>),

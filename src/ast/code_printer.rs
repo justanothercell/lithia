@@ -18,6 +18,7 @@ impl CodePrinter for Type {
 impl CodePrinter for Ty {
     fn print(&self) -> String {
         match self {
+            Ty::Returns(ty) => format!("!{}", ty.print()),
             Ty::Pointer(ty) => format!("&{}", ty.print()),
             Ty::RawPointer => "&".to_string(),
             Ty::Array(ty, c) => format!("[{};{c}]", ty.print()),
