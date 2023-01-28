@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::{c_uint, c_ulonglong};
 use llvm_sys::{prelude::LLVMBool, prelude, core, LLVMOpcode, LLVMIntPredicate};
 use llvm_sys::prelude::{LLVMTypeRef};
@@ -44,13 +45,15 @@ impl Const {
                 let Variable {
                     ast_type,
                     llvm_type,
-                    llvm_value
+                    llvm_value,
+                    ..
                 } = lit.llvm_literal(env)?;
                 let loc = ast_type.1.clone();
                 Variable {
                     ast_type: Type(Ty::Pointer(Box::new(ast_type)), loc),
                     llvm_type,
                     llvm_value,
+                    mutable: false
                 }
             } else {
                 return Err(LithiaET::CompilationError(format!("constant can only be initialized by literal pointer, found {}", self.print())).at(self.val.2.clone()).when("compiling constant"))
@@ -61,6 +64,7 @@ impl Const {
                 ast_type: self.ty.clone(),
                 llvm_type: ty,
                 llvm_value: v,
+                mutable: false
             });
         }
         Ok(())
@@ -77,6 +81,7 @@ impl Func {
             ast_type: Type(Ty::Signature(self.args.clone().into_iter().map(|(i, t)|t).collect(), Box::new(self.ret.clone()), self.tags.contains_key("unsafe"), self.tags.contains_key("vararg")), self.name.1.clone()),
             llvm_type: function_type,
             llvm_value: function,
+            mutable: false
         });
         Ok(())
     }
@@ -114,6 +119,7 @@ impl Func {
                                                                    ast_type: ty.clone(),
                                                                    llvm_type: llvm_ty?,
                                                                    llvm_value: unsafe {core::LLVMGetParam(function, i as c_uint)},
+                                                                   mutable: false
                                                                });
                 Ok(())
             })
@@ -199,6 +205,7 @@ impl Expression {
                             ast_type: Type(Ty::Pointer(Box::new(v.ast_type)), self.2.clone()),
                             llvm_type:  unsafe { core::LLVMPointerType(v.llvm_type, 0) } , // TODO: replace 0
                             llvm_value: ptr,
+                            mutable: false
                         }),
                         return_t: r.return_t,
                         loc: self.2.clone()
@@ -220,14 +227,20 @@ impl Expression {
                             ast_type: inner_ty.clone(),
                             llvm_type: llvm_ty,
                             llvm_value: deref,
+                            mutable: false
                         }),
                         return_t: r.return_t,
                         loc: self.2.clone()
                     }
                 }
                 Expr::Variable(var) => {
+                    let mut var = env.get_var(&var.0, Some(&var.1))?;
+                    if var.mutable {
+                        var.llvm_value = unsafe { core::LLVMBuildLoad2(env.builder, var.llvm_type, var.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new()))) };
+                    }
+                    var.mutable = false;
                     ReturnInfo {
-                        variable: Some(env.get_var(&var.0, Some(&var.1))?),
+                        variable: Some(var),
                         return_t: None,
                         loc: self.2.clone()
                     }
@@ -280,6 +293,7 @@ impl Expression {
                                 ast_type: *ret,
                                 llvm_type: ty,
                                 llvm_value: out,
+                                mutable: false
                             }),
                             return_t: ret_t,
                             loc: self.2.clone()
@@ -290,12 +304,40 @@ impl Expression {
                 },
                 Expr::VarCreate(name, mutable, ty, expr) => {
                     let mut r = expr.build(env, Some(name.0.clone()))?;
-                    let v = r.resolve_var()?;
-                    env.stack.last_mut().unwrap().vars.insert(name.0.clone(), v.clone());
+                    let mut v = r.resolve_var()?;
+                    v.mutable = *mutable;
+                    if v.mutable {
+                        unsafe {
+                            let ptr = core::LLVMBuildAlloca(env.builder, v.llvm_type, c_str_ptr!(""));
+                            core::LLVMBuildStore(env.builder, v.llvm_value, ptr);
+                            v.llvm_value = ptr;
+                        }
+                    }
                     if let Some(t) = &ty {
                         v.ast_type.satisfies_or_err(t, TySat::Yes)?;
                     }
+                    env.stack.last_mut().unwrap().vars.insert(name.0.clone(), v.clone());
                     r.variable = None; // var creation doesnt resolve to variable
+                    r
+                }
+                Expr::VarAssign(name, op, expr) => {
+                    let mut expr = expr.clone();
+                    let var = env.get_var(&name.0, Some(&self.2))?;
+                    if let Some(op) = op {
+                        expr = Box::new(Expression(HashMap::new(), Expr::BinaryOp(
+                            op.clone(),
+                            Box::new(Expression(HashMap::new(), Expr::Variable(name.clone()), op.1.clone())),
+                            expr
+                        ), op.1.clone()))
+                    }
+                    let mut r = expr.build(env, None)?;
+                    if !var.mutable {
+                        return Err(LithiaET::CompilationError(format!("cant assign to immutable variable")).at(self.2.clone()))
+                    }
+                    let mut v = r.resolve_var()?;
+                    v.ast_type.satisfies_or_err(&var.ast_type, TySat::Yes)?;
+                    unsafe { core::LLVMBuildStore(env.builder, v.llvm_value, var.llvm_value); }
+                    r.variable = None;
                     r
                 }
                 Expr::Cast(expr, target_t) => {
@@ -314,7 +356,8 @@ impl Expression {
                         variable: Some(Variable {
                             ast_type: target_t.clone(),
                             llvm_type,
-                            llvm_value:  unsafe { core::LLVMBuildCast(env.builder, op_code, v.llvm_value, llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new()))) },
+                            llvm_value: unsafe { core::LLVMBuildCast(env.builder, op_code, v.llvm_value, llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new()))) },
+                            mutable: false
                         }),
                         return_t: r.return_t,
                         loc: self.2.clone()
@@ -351,6 +394,7 @@ impl Expression {
                                 ast_type: va.ast_type,
                                 llvm_type: va.llvm_type,
                                 llvm_value: r,
+                                mutable: false
                             }),
                             return_t: ra.return_t,
                             loc: self.2.clone()
@@ -371,6 +415,7 @@ impl Expression {
                                 ast_type: Type(Ty::Single(vec![], Item::new(&vec!["bool"], loc.clone())), loc.clone()),
                                 llvm_type: unsafe { core::LLVMInt1Type() },
                                 llvm_value: r,
+                                mutable: false
                             }),
                             return_t: ra.return_t,
                             loc: self.2.clone()
@@ -508,7 +553,8 @@ impl AstLiteral {
                     _ => unimplemented!("ty to llvm ty")
                 };
                 r
-            }
+            },
+            mutable: false
         })
     }
 }

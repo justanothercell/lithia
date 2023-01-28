@@ -44,6 +44,18 @@ impl<Pred, Out> Consumer for Optional<Pred, Out>{
     }
 }
 
+pub(crate) struct Or<Pred, Out>(pub(crate) Pat<Pred>, pub(crate) Pat<Out>, pub(crate) Pat<Out>);
+impl<Pred, Out> Consumer for Or<Pred, Out>{
+    type Output = Out;
+
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, LithiaError> {
+        Ok(if self.0.consume(&mut iter.clone()).is_ok() {
+            self.1.consume(iter)?
+        } else { self.2.consume(iter)? })
+    }
+}
+
+
 
 pub(crate) struct Succeed<Out>(pub(crate) Pat<Out>);
 impl<Out> Consumer for Succeed<Out>{
@@ -57,6 +69,21 @@ impl<Out> Consumer for Succeed<Out>{
             Ok(_) => Ok(()),
             Err(_) => Err(LithiaET::ParsingError("pattern expected to pass".to_string()).at(start))
         }
+    }
+}
+
+pub(crate) struct Both<A, B>(pub(crate) Pat<A>, pub(crate) Pat<B>);
+impl<A, B> Consumer for Both<A, B>{
+    type Output = ();
+
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, LithiaError> {
+        let mut start = iter.here();
+        let out1 = self.0.consume(&mut iter.clone());
+        let out2 = self.1.consume(&mut iter.clone());
+        if out1.is_err() || out2.is_err() {
+            return Err(LithiaET::ParsingError("both pattern expected to pass".to_string()).at(start))
+        }
+        Ok(())
     }
 }
 

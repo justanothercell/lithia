@@ -67,7 +67,8 @@ impl ReturnInfo {
 pub(crate) struct Variable{
     ast_type: Type,
     llvm_type: LLVMTypeRef,
-    llvm_value: LLVMValueRef
+    llvm_value: LLVMValueRef,
+    mutable: bool
 }
 
 impl LLVMModGenEnv{
