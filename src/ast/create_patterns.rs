@@ -149,6 +149,10 @@ pub(crate) fn build_patterns() -> Patterns {
     expression_finalizer.finalize(Pattern::named("expression",(
         tags.clone(),
         Match(vec![
+            (ExpectIdent("return".to_string()).pat(), (ExpectIdent("return".to_string()), Optional(expression.clone(), expression.clone()))
+                .map(|(_, expr), _|{
+                Expr::Return(expr.map(|e| Box::new(e)))
+            }).pat()),
             (ExpectIdent("if".to_string()).pat(), if_expr.clone()),
             (ExpectParticle('{').pat(), block.clone().map(|block, _| Expr::Block(block)).pat()),
             (ExpectParticle('(').pat(), (ExpectParticle('('), expression.clone(), ExpectParticle(')')).map(|(_, expr, _), _| Expr::Expr(Box::new(expr))).pat()),

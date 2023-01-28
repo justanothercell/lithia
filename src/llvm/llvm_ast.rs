@@ -5,6 +5,7 @@ use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, 
 use crate::{c_str_ptr};
 use crate::ast::code_printer::CodePrinter;
 use crate::ast::types_impl::TySat;
+use crate::ast::types_impl::TySat::No;
 use crate::error::{OnParseErr, LithiaError, LithiaET};
 use crate::llvm::{LLVMModGenEnv, ReturnInfo, Variable};
 use crate::llvm::gen_flow_expressions::compile_if;
@@ -118,19 +119,16 @@ impl Func {
             })
             .collect::<Result<Vec<()>, LithiaError>>()?;
         let r = body.build(env, None)?;
+        r.variable.as_ref().map(|v| unsafe { core::LLVMBuildRet(env.builder, v.llvm_value) });
         let v = match (r.variable, r.return_t) {
             (None, None) => None,
             (None, Some(rt)) => Some(rt),
-            (Some(v), None) => {
-                unsafe { core::LLVMBuildRet(env.builder, v.llvm_value); }
-                Some((v.ast_type, v.llvm_type))
-            },
+            (Some(v), None) => Some((v.ast_type, v.llvm_type)),
             (Some(v), Some(rt)) => {
                 if v.ast_type != rt.0 {
                     return Err(LithiaET::TypeError(v.ast_type.clone(), rt.0.clone())
                         .ats(vec![v.ast_type.1.clone(), rt.0.1.clone()]))
                 }
-                unsafe { core::LLVMBuildRet(env.builder, v.llvm_value); }
                 Some(rt)
             }
         };
@@ -169,6 +167,25 @@ impl Expression {
                         loc: self.2.clone()
                     }
                 },
+                Expr::Return(e) => {
+                    let rt = e.as_ref().map(|e|e.build(env, None))
+                        .map(|r| r.map(|r| r.variable))
+                        .map_or(Ok(None), |v| v.map(Some))
+                        .map(|x| x.flatten().map(|v| {
+                            unsafe { core::LLVMBuildRet(env.builder, v.llvm_value); }
+                            Ok((v.ast_type, v.llvm_type))
+                        }))?
+                        .unwrap_or_else(|| {
+                            unsafe { core::LLVMBuildRetVoid(env.builder); }
+                            let t = Type(Ty::Tuple(vec![]), self.2.clone());
+                            t.llvm_type(env).map(|lt| (t, lt))
+                        })?;
+                    ReturnInfo {
+                        variable: None,
+                        return_t: Some(rt),
+                        loc: self.2.clone()
+                    }
+                }
                 Expr::Point(expr) => {
                     let r = expr.build(env, None)?;
                     let v = r.resolve_var()?;
@@ -379,6 +396,13 @@ impl Block {
                 if let Some(rtt) = &ret_t {
                     rt.0.satisfies_or_err(&rtt.0, TySat::Yes)?;
                 } else { ret_t = r.return_t.clone() }
+                if r.variable.is_none() {
+                    return Ok(ReturnInfo {
+                        variable: None,
+                        return_t: r.return_t,
+                        loc: stmt.2.clone(),
+                    })
+                }
             }
             if let Expr::Return(_) = stmt.0.1 {
                 return Ok(ReturnInfo {
@@ -391,6 +415,13 @@ impl Block {
                 if self.0.len() != i + 1 {
                     return Err(LithiaET::CompilationError(format!("returning expression needs to be at end of block")).at(stmt.2.clone()).when("compiling block"))
                 }
+                return Ok(ReturnInfo {
+                    variable: r.variable,
+                    return_t: r.return_t,
+                    loc: stmt.2.clone(),
+                })
+            }
+            if self.0.len() == i + 1 && stmt.0.1.is_block_like() && !stmt.1 {
                 return Ok(ReturnInfo {
                     variable: r.variable,
                     return_t: r.return_t,
@@ -455,7 +486,7 @@ impl AstLiteral {
             ast_type: self.get_type()?,
             llvm_type: self.get_type()?.llvm_type(env)?,
             llvm_value: unsafe {
-                match &self.0 {
+                let r = match &self.0 {
                     Literal::String(s) => AstLiteral::llvm_literal(
                         &AstLiteral(Literal::Array(
                             {
@@ -475,7 +506,8 @@ impl AstLiteral {
                                              arr.iter().map(|e| e.llvm_literal(env).map(|v| v.llvm_value)).collect::<Result<Vec<_>, LithiaError>>()?.as_mut_ptr(),
                                              *len as c_uint),
                     _ => unimplemented!("ty to llvm ty")
-                }
+                };
+                r
             }
         })
     }
