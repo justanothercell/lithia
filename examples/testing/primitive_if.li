@@ -3,12 +3,19 @@
 #[extern("C")]
 fn printf(fmt: &[u8]) -> i32;
 
+
 fn main(){
     let x = 7u32;
-    let y = 5u32;
-    if x > y {
-        printf(&"gt");
-    } else {
-        printf(&"le");
-    }
+    let y = 88u32;
+    #[unsafe]
+    printf(&"r: {}ß\n", if x > y {
+            #[unsafe]
+            printf(&"gt!\n");
+            42u32
+        } else {
+            #[unsafe]
+            printf(&"le!\n");
+            69u32
+        }
+    );
 }

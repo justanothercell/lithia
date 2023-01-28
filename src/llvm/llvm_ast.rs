@@ -5,7 +5,6 @@ use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, 
 use crate::{c_str_ptr};
 use crate::ast::code_printer::CodePrinter;
 use crate::ast::types_impl::TySat;
-use crate::ast::types_impl::TySat::No;
 use crate::error::{OnParseErr, LithiaError, LithiaET};
 use crate::llvm::{LLVMModGenEnv, ReturnInfo, Variable};
 use crate::llvm::gen_flow_expressions::compile_if;
@@ -159,7 +158,7 @@ impl Expression {
         if self.0.contains_key("unsafe") {
             env.stack.last_mut().unwrap().unsafe_ctx = true;
         }
-        let r = unsafe {
+        let r =
             Ok(match &self.1 {
                 Expr::Expr(box expr) => expr.build(env, ret_name)?,
                 Expr::Literal(lit) => {
@@ -173,12 +172,15 @@ impl Expression {
                 Expr::Point(expr) => {
                     let r = expr.build(env, None)?;
                     let v = r.resolve_var()?;
-                    let ptr = core::LLVMBuildAlloca(env.builder, v.llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new())));
-                    core::LLVMBuildStore(env.builder, v.llvm_value, ptr);
+                    let ptr =  unsafe {
+                        let ptr = core::LLVMBuildAlloca(env.builder, v.llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new())));
+                        core::LLVMBuildStore(env.builder, v.llvm_value, ptr);
+                        ptr
+                    };
                     ReturnInfo {
                         variable: Some(Variable{
                             ast_type: Type(Ty::Pointer(Box::new(v.ast_type)), self.2.clone()),
-                            llvm_type: core::LLVMPointerType(v.llvm_type, 0), // TODO: replace 0
+                            llvm_type:  unsafe { core::LLVMPointerType(v.llvm_type, 0) } , // TODO: replace 0
                             llvm_value: ptr,
                         }),
                         return_t: r.return_t,
@@ -195,7 +197,7 @@ impl Expression {
                         return Err(LithiaET::TypeError(Type(Ty::Pointer(Box::new(Type::placeholder(self.2.clone()))), self.2.clone()), v.ast_type).at(self.2.clone()).when("compiling deref"))
                     };
                     let llvm_ty = inner_ty.llvm_type(env)?;
-                    let deref = core::LLVMBuildLoad2(env.builder, llvm_ty, v.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
+                    let deref =  unsafe { core::LLVMBuildLoad2(env.builder, llvm_ty, v.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new()))) };
                     ReturnInfo {
                         variable: Some(Variable {
                             ast_type: inner_ty.clone(),
@@ -254,7 +256,7 @@ impl Expression {
                                 .collect::<Result<Vec<_>, _>>()?)
                         }
                         let ty = ret.llvm_type(env)?;
-                        let out = core::LLVMBuildCall2(env.builder, var.llvm_type, var.llvm_value, llvm_args.as_mut_ptr(), args.len() as c_uint, c_str_ptr!(ret_name.unwrap_or(String::new())));
+                        let out =  unsafe { core::LLVMBuildCall2(env.builder, var.llvm_type, var.llvm_value, llvm_args.as_mut_ptr(), args.len() as c_uint, c_str_ptr!(ret_name.unwrap_or(String::new()))) };
 
                         ReturnInfo {
                             variable: Some(Variable {
@@ -290,12 +292,12 @@ impl Expression {
                         return Err(LithiaET::UnsafeError("unsafe cast".to_string()).at(self.2.clone()))
                     }
                     let llvm_type = target_t.llvm_type(env)?;
-                    let op_code = core::LLVMGetCastOpcode(v.llvm_value, false as LLVMBool, llvm_type, false as LLVMBool);
+                    let op_code =  unsafe { core::LLVMGetCastOpcode(v.llvm_value, false as LLVMBool, llvm_type, false as LLVMBool) };
                     ReturnInfo {
                         variable: Some(Variable {
                             ast_type: target_t.clone(),
                             llvm_type,
-                            llvm_value: core::LLVMBuildCast(env.builder, op_code, v.llvm_value, llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new()))),
+                            llvm_value:  unsafe { core::LLVMBuildCast(env.builder, op_code, v.llvm_value, llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new()))) },
                         }),
                         return_t: r.return_t,
                         loc: self.2.clone()
@@ -326,7 +328,7 @@ impl Expression {
                         invalid => panic!("didnt expect op {invalid:?}")
                     };
                     if let Some(op) = opc {
-                        let r = core::LLVMBuildBinOp(env.builder, op, va.llvm_value, vb.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
+                        let r =  unsafe { core::LLVMBuildBinOp(env.builder, op, va.llvm_value, vb.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new()))) };
                         ReturnInfo {
                             variable: Some(Variable {
                                 ast_type: va.ast_type,
@@ -337,7 +339,7 @@ impl Expression {
                             loc: self.2.clone()
                         }
                     } else {
-                        let r = core::LLVMBuildICmp(env.builder, match &op.0 {
+                        let r =  unsafe { core::LLVMBuildICmp(env.builder, match &op.0 {
                             Op::LT => LLVMIntPredicate::LLVMIntSLT,
                             Op::LE => LLVMIntPredicate::LLVMIntSLE,
                             Op::GT => LLVMIntPredicate::LLVMIntSGT,
@@ -345,12 +347,12 @@ impl Expression {
                             Op::EQ => LLVMIntPredicate::LLVMIntEQ,
                             Op::NE => LLVMIntPredicate::LLVMIntNE,
                             invalid => panic!("didnt expect op {invalid:?}")
-                        }, va.llvm_value, vb.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
+                        }, va.llvm_value, vb.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new()))) };
                         let loc = op.1.clone();
                         ReturnInfo {
                             variable: Some(Variable {
                                 ast_type: Type(Ty::Single(vec![], Item::new(&vec!["bool"], loc.clone())), loc.clone()),
-                                llvm_type: core::LLVMInt1Type(),
+                                llvm_type: unsafe { core::LLVMInt1Type() },
                                 llvm_value: r,
                             }),
                             return_t: ra.return_t,
@@ -360,8 +362,7 @@ impl Expression {
                 }
                 Expr::If(expr, body, else_body) => compile_if(expr, body, else_body, env, ret_name)?,
                 _ => unimplemented!()
-            })
-        };
+            });
         if self.0.contains_key("unsafe") {
             env.stack.last_mut().unwrap().unsafe_ctx = outer_unsafe;
         }

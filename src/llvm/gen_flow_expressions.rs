@@ -4,39 +4,36 @@ use crate::error::{LithiaError, LithiaET};
 use crate::llvm::{LLVMModGenEnv, ReturnInfo, Variable};
 use llvm_sys::core;
 
+/// How to: cook an if:
+/// 1. create blocks, save ref to start_block
+/// 2. goto then_block, build then_block, jmp continue_block
+/// 3. goto else_block, build else_block, jmp continue_block
+/// 4. resolve all types, check for compatability, test if both branches resolve to a value
+///     1. goto start_block, alloc resolved value
+///     2. goto then_block, store resolved value
+///     3. goto else_block, store resolved value
+///     4. goto continue_block, load resolved value
+/// 5. goto start_block, build break
+/// 6. goto continue_block
 pub(crate) fn compile_if(cond: &Expression, body: &Block, else_body: &Block, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<ReturnInfo, LithiaError> {
     let then_block = unsafe { core::LLVMAppendBasicBlock(env.function.unwrap(), c_str_ptr!("then")) };
+    let start_block = unsafe { core::LLVMGetPreviousBasicBlock(then_block) };
     let else_block = unsafe { core::LLVMAppendBasicBlock(env.function.unwrap(), c_str_ptr!("else")) };
     let continue_block = unsafe { core::LLVMAppendBasicBlock(env.function.unwrap(), c_str_ptr!("ifcont")) };
     let c = cond.build(env, None)?;
-    let v = c.resolve_var()?;
-    let alloc_ret = unsafe {
-        // RET VAL
-        let alloc_ret = core::LLVMBuildAlloca(env.builder, [].as_mut_ptr(), c_str_ptr!(""));
-
-        core::LLVMBuildCondBr(env.builder, v.llvm_value, then_block, else_block); // IF CONDITION CALL
+    unsafe {
         core::LLVMPositionBuilderAtEnd(env.builder, then_block); // START THEN CLAUSE
-        alloc_ret
     };
-    println!("alloced");
     let body_r = body.build(env, None)?;
     unsafe {
-        if let Some(var) = &body_r.variable {
-            core::LLVMBuildStore(env.builder, var.llvm_value.clone(), alloc_ret);
-            core::LLVMBuildBr(env.builder, continue_block); // END THEN CLAUSE
-        }
+        core::LLVMBuildBr(env.builder, continue_block);
         core::LLVMPositionBuilderAtEnd(env.builder, else_block); // START ELSE CLAUSE
     };
-    println!("bodied");
     let else_body_r = else_body.build(env, None)?;
     unsafe {
-        if let Some(var) = &else_body_r.variable {
-            core::LLVMBuildStore(env.builder, var.llvm_value.clone(), alloc_ret);
-            core::LLVMBuildBr(env.builder, continue_block); // END ELSE CLAUSE
-        }
+        core::LLVMBuildBr(env.builder, continue_block);
         core::LLVMPositionBuilderAtEnd(env.builder, continue_block); // START CONTINUE BLOCK
     };
-    println!("elsed");
     let ret_t = match (body_r.return_t, else_body_r.return_t) {
         (None, None) => None,
         (Some(t), None) => Some(t),
@@ -55,7 +52,7 @@ pub(crate) fn compile_if(cond: &Expression, body: &Block, else_body: &Block, env
                 .ats(vec![rt.0.1.clone(), r.0.1.clone()]))
         }
     }
-    let v = match match (body_r.variable, else_body_r.variable) {
+    let v = match match (body_r.variable.clone(), else_body_r.variable.clone()) {
         (None, None) => None,
         (Some(v), None) => Some(v),
         (None, Some(v)) => Some(v),
@@ -69,7 +66,22 @@ pub(crate) fn compile_if(cond: &Expression, body: &Block, else_body: &Block, env
     } {
         None => None,
         Some(v) => {
-            let r = unsafe { core::LLVMBuildLoad2(env.builder, v.llvm_type, v.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new()))) };
+            let r = unsafe {
+                core::LLVMPositionBuilderAtEnd(env.builder, start_block);
+                let alloc_ret = core::LLVMBuildAlloca(env.builder, v.llvm_type, c_str_ptr!(""));
+                if let Some(var) = &body_r.variable {
+                    core::LLVMPositionBuilderAtEnd(env.builder, then_block);
+                    core::LLVMBuildStore(env.builder, var.llvm_value.clone(), alloc_ret);
+                    core::LLVMBuildBr(env.builder, continue_block); // END THEN CLAUSE
+                }
+                if let Some(var) = &else_body_r.variable {
+                    core::LLVMPositionBuilderAtEnd(env.builder, else_block);
+                    core::LLVMBuildStore(env.builder, var.llvm_value.clone(), alloc_ret);
+                    core::LLVMBuildBr(env.builder, continue_block); // END ELSE CLAUSE
+                }
+                core::LLVMPositionBuilderAtEnd(env.builder, continue_block); // START CONTINUE BLOCK
+                core::LLVMBuildLoad2(env.builder, v.llvm_type, v.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())))
+            };
             Some(Variable {
                 ast_type: v.ast_type,
                 llvm_type: v.llvm_type,
@@ -77,7 +89,11 @@ pub(crate) fn compile_if(cond: &Expression, body: &Block, else_body: &Block, env
             })
         }
     };
-    println!("retted");
+    unsafe {
+        core::LLVMPositionBuilderAtEnd(env.builder, start_block);
+        core::LLVMBuildCondBr(env.builder, c.resolve_var()?.llvm_value, then_block, else_block); // IF CONDITION CALL
+        core::LLVMPositionBuilderAtEnd(env.builder, continue_block);
+    }
     Ok(ReturnInfo {
         variable: v,
         return_t: ret_t,
