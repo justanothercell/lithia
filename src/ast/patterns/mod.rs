@@ -75,7 +75,7 @@ macro_rules! tuple_consumer {
             type Output = ($($t::Output,)*);
             #[inline]
             #[allow(unused_variables)]
-            fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
+            fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, LithiaError> {
                 Ok(($(self.$n.consume(iter)?,)*))
             }
         }

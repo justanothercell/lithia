@@ -85,13 +85,6 @@ impl Type {
             Err(LithiaET::TypeError(other.clone(), self.clone()).ats(vec![self.1.clone(), other.1.clone()]))
         }
     }
-    pub(crate) fn is_return(&self) -> bool {
-        if let Ty::Returns(_) = &self.0 { true } else { false }
-    }
-
-    pub(crate) fn unwrap_return(self) -> Self {
-        if let Ty::Returns(box ty) = self.0 { ty } else { self }
-    }
 }
 
 impl Ty {

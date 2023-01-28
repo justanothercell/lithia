@@ -58,7 +58,7 @@ impl ReturnInfo {
         if let Some(v) = &self.variable {
             Ok(v.clone())
         } else {
-            Err(LithiaET::CompilationError(format!("expression does not resolve to a non-void value")).at(loc))
+            Err(LithiaET::CompilationError(format!("expression does not resolve to a non-void value")).at(self.loc.clone()))
         }
     }
 }

@@ -1,0 +1,14 @@
+#[unsafe]
+#[vararg]
+#[extern("C")]
+fn printf(fmt: &[u8]) -> i32;
+
+fn main(){
+    let x = 7u32;
+    let y = 5u32;
+    if x > y {
+        printf(&"gt");
+    } else {
+        printf(&"le");
+    }
+}

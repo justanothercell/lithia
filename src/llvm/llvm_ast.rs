@@ -5,10 +5,10 @@ use crate::ast::{AstLiteral, Block, Const, Expr, Expression, Func, Ident, Item, 
 use crate::{c_str_ptr};
 use crate::ast::code_printer::CodePrinter;
 use crate::ast::types_impl::TySat;
+use crate::ast::types_impl::TySat::No;
 use crate::error::{OnParseErr, LithiaError, LithiaET};
 use crate::llvm::{LLVMModGenEnv, ReturnInfo, Variable};
 use crate::llvm::gen_flow_expressions::compile_if;
-use crate::source::span::Span;
 use crate::tokens::{Literal, NumLit};
 
 impl Module {
@@ -118,15 +118,33 @@ impl Func {
                 Ok(())
             })
             .collect::<Result<Vec<()>, LithiaError>>()?;
-        let (ret, ret_loc) = body.build(env, None)?;
-        env.pop_stack();
-        ret.ast_type.satisfies_or_err(&self.ret, TySat::Yes).e_at_add(ret_loc)?;
-        unsafe {
-            if ret.ast_type.0.is_empty() {
-                core::LLVMBuildRetVoid(env.builder);
-            } else {
-                core::LLVMBuildRet(env.builder, ret.llvm_value);
+        let r = body.build(env, None)?;
+        let v = match (r.variable, r.return_t) {
+            (None, None) => None,
+            (None, Some(rt)) => Some(rt),
+            (Some(v), None) => {
+                unsafe { core::LLVMBuildRet(env.builder, v.llvm_value); }
+                Some((v.ast_type, v.llvm_type))
+            },
+            (Some(v), Some(rt)) => {
+                if v.ast_type != rt.0 {
+                    return Err(LithiaET::TypeError(v.ast_type.clone(), rt.0.clone())
+                        .ats(vec![v.ast_type.1.clone(), rt.0.1.clone()]))
+                }
+                unsafe { core::LLVMBuildRet(env.builder, v.llvm_value); }
+                Some(rt)
             }
+        };
+        env.pop_stack();
+        if let Some(r) = &v {
+            r.0.satisfies_or_err(&self.ret, TySat::Yes).e_at_add(r.0.1.clone())?;
+        } else {
+            if !self.ret.0.is_empty() {
+                return Err(LithiaET::CompilationError(format!("function returns {} but got empty type", self.ret.print())).at(self.ret.1.clone()))
+            }
+            unsafe { core::LLVMBuildRetVoid(env.builder); }
+        }
+        unsafe {
             core::LLVMDisposeBuilder(env.builder);
         }
         env.builder = entry_builder;
@@ -144,19 +162,32 @@ impl Expression {
         let r = unsafe {
             Ok(match &self.1 {
                 Expr::Expr(box expr) => expr.build(env, ret_name)?,
-                Expr::Literal(lit) => lit.llvm_literal(env)?,
+                Expr::Literal(lit) => {
+                    let v = lit.llvm_literal(env)?;
+                    ReturnInfo {
+                        variable: Some(v),
+                        return_t: None,
+                        loc: self.2.clone()
+                    }
+                },
                 Expr::Point(expr) => {
-                    let v = expr.build(env, None)?;
+                    let r = expr.build(env, None)?;
+                    let v = r.resolve_var()?;
                     let ptr = core::LLVMBuildAlloca(env.builder, v.llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new())));
                     core::LLVMBuildStore(env.builder, v.llvm_value, ptr);
-                    Variable {
-                        ast_type: Type(Ty::Pointer(Box::new(v.ast_type)),self.2.clone()),
-                        llvm_type: core::LLVMPointerType(v.llvm_type, 0), // TODO: replace 0
-                        llvm_value: ptr,
+                    ReturnInfo {
+                        variable: Some(Variable{
+                            ast_type: Type(Ty::Pointer(Box::new(v.ast_type)), self.2.clone()),
+                            llvm_type: core::LLVMPointerType(v.llvm_type, 0), // TODO: replace 0
+                            llvm_value: ptr,
+                        }),
+                        return_t: r.return_t,
+                        loc: self.2.clone()
                     }
                 },
                 Expr::Deref(expr) => {
-                    let v = expr.build(env, None)?;
+                    let r = expr.build(env, None)?;
+                    let v = r.resolve_var()?;
                     if let Ty::RawPointer = &v.ast_type.0 {
                         return Err(LithiaET::TypeError(Type(Ty::Pointer(Box::new(Type::placeholder(self.2.clone()))), self.2.clone()), v.ast_type).at(self.2.clone()).when("compiling deref"))
                     }
@@ -165,14 +196,24 @@ impl Expression {
                     };
                     let llvm_ty = inner_ty.llvm_type(env)?;
                     let deref = core::LLVMBuildLoad2(env.builder, llvm_ty, v.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
-                    Variable {
-                        ast_type: inner_ty.clone(),
-                        llvm_type: llvm_ty,
-                        llvm_value: deref,
+                    ReturnInfo {
+                        variable: Some(Variable {
+                            ast_type: inner_ty.clone(),
+                            llvm_type: llvm_ty,
+                            llvm_value: deref,
+                        }),
+                        return_t: r.return_t,
+                        loc: self.2.clone()
                     }
                 }
-                Expr::Variable(var) => env.get_var(&var.0, Some(&var.1))?,
-                Expr::Block(block) => block.build(env, ret_name)?.0,
+                Expr::Variable(var) => {
+                    ReturnInfo {
+                        variable: Some(env.get_var(&var.0, Some(&var.1))?),
+                        return_t: None,
+                        loc: self.2.clone()
+                    }
+                },
+                Expr::Block(block) => block.build(env, ret_name)?,
                 Expr::FuncCall(fun, args) => {
                     let var = env.get_var(&fun.0.first().unwrap().0, Some(&fun.1))?;
                     if let Ty::Signature(arg_types, ret, is_unsafe, vararg) = var.ast_type.0 {
@@ -186,38 +227,61 @@ impl Expression {
                                 Err(LithiaET::CompilationError(format!("expected {} args, got {}", arg_types.len(), args.len())).at(self.2.clone()).when("compiling function call"))
                             }
                         }
+                        let mut ret_t: Option<(Type, LLVMTypeRef)> = None;
                         let mut llvm_args = args.iter().zip(arg_types)
-                            .map(|(expr, t)| expr.build(env, None).map(|v| {
+                            .map(|(expr, t)| expr.build(env, None).map(|r| {
+                                let v = r.resolve_var()?;
+                                if let Some(rt) = &r.return_t {
+                                    if let Some(rtt) = &ret_t {
+                                        rt.0.satisfies_or_err(&rtt.0, TySat::Yes)?;
+                                    } else { ret_t = r.return_t.clone() }
+                                }
                                 v.ast_type.satisfies_or_err(&t, TySat::Yes).e_at_add(expr.2.clone())?;
                                 Ok(v.llvm_value)
                             }).flatten())
                             .collect::<Result<Vec<_>, _>>()?;
                         if llvm_args.len() < args.len() {
-                            llvm_args.append(&mut args.split_at(llvm_args.len()).1.into_iter()
-                                .map(|expr| expr.build(env, None).map(|v|v.llvm_value))
+                            llvm_args.append(&mut args.into_iter().skip(llvm_args.len())
+                                .map(|expr| expr.build(env, None).map(|r|{
+                                    let v = r.resolve_var()?;
+                                    if let Some(rt) = &r.return_t {
+                                        if let Some(rtt) = &ret_t {
+                                            rt.0.satisfies_or_err(&rtt.0, TySat::Yes)?;
+                                        } else { ret_t = r.return_t.clone() }
+                                    }
+                                    Ok(v.llvm_value)
+                                }).flatten())
                                 .collect::<Result<Vec<_>, _>>()?)
                         }
                         let ty = ret.llvm_type(env)?;
                         let out = core::LLVMBuildCall2(env.builder, var.llvm_type, var.llvm_value, llvm_args.as_mut_ptr(), args.len() as c_uint, c_str_ptr!(ret_name.unwrap_or(String::new())));
-                        Variable {
-                            ast_type: *ret,
-                            llvm_type: ty,
-                            llvm_value: out,
+
+                        ReturnInfo {
+                            variable: Some(Variable {
+                                ast_type: *ret,
+                                llvm_type: ty,
+                                llvm_value: out,
+                            }),
+                            return_t: ret_t,
+                            loc: self.2.clone()
                         }
                     } else {
                         return Err(LithiaET::TypeError(Type(Ty::Signature(vec![], Box::new(Type::placeholder(self.2.clone())), false, false), self.2.clone()), var.ast_type).at(self.2.clone()).when("compiling expression"))
                     }
                 },
                 Expr::VarCreate(name, mutable, ty, expr) => {
-                    let v = expr.build(env, Some(name.0.clone()))?;
+                    let mut r = expr.build(env, Some(name.0.clone()))?;
+                    let v = r.resolve_var()?;
                     env.stack.last_mut().unwrap().vars.insert(name.0.clone(), v.clone());
                     if let Some(t) = &ty {
                         v.ast_type.satisfies_or_err(t, TySat::Yes)?;
                     }
-                    v
+                    r.variable = None; // var creation doesnt resolve to variable
+                    r
                 }
                 Expr::Cast(expr, target_t) => {
-                    let v = expr.build(env, None)?;
+                    let r = expr.build(env, None)?;
+                    let v = r.resolve_var()?;
                     let sat = v.ast_type.satisfies(target_t);
                     if sat != TySat::Cast && sat != TySat::CastUnsafe {
                         return Err(LithiaET::CastError(v.ast_type, target_t.clone()).at(self.2.clone()))
@@ -227,18 +291,21 @@ impl Expression {
                     }
                     let llvm_type = target_t.llvm_type(env)?;
                     let op_code = core::LLVMGetCastOpcode(v.llvm_value, false as LLVMBool, llvm_type, false as LLVMBool);
-                    Variable {
-                        ast_type: target_t.clone(),
-                        llvm_type,
-                        llvm_value: core::LLVMBuildCast(env.builder, op_code, v.llvm_value, llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new()))),
+                    ReturnInfo {
+                        variable: Some(Variable {
+                            ast_type: target_t.clone(),
+                            llvm_type,
+                            llvm_value: core::LLVMBuildCast(env.builder, op_code, v.llvm_value, llvm_type, c_str_ptr!(ret_name.unwrap_or(String::new()))),
+                        }),
+                        return_t: r.return_t,
+                        loc: self.2.clone()
                     }
                 }
                 Expr::BinaryOp(op, a, b) => {
-                    let va = a.build(env, None)?;
-                    let vb = b.build(env, None)?;
-                    if va.ast_type != va.ast_type {
-                        return Err(LithiaET::TypeError(va.ast_type.clone(), vb.ast_type.clone()).ats(vec![va.ast_type.1.clone(), vb.ast_type.1.clone()]))
-                    }
+                    let ra = a.build(env, None)?;
+                    let rb = b.build(env, None)?;
+                    let va = ra.resolve_var()?;
+                    let vb = rb.resolve_var()?;
                     let opc = match &op.0 {
                         Op::Add => Some(LLVMOpcode::LLVMAdd),
                         Op::Sub => Some(LLVMOpcode::LLVMSub),
@@ -260,10 +327,14 @@ impl Expression {
                     };
                     if let Some(op) = opc {
                         let r = core::LLVMBuildBinOp(env.builder, op, va.llvm_value, vb.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
-                        Variable {
-                            ast_type: va.ast_type,
-                            llvm_type: va.llvm_type,
-                            llvm_value: r,
+                        ReturnInfo {
+                            variable: Some(Variable {
+                                ast_type: va.ast_type,
+                                llvm_type: va.llvm_type,
+                                llvm_value: r,
+                            }),
+                            return_t: ra.return_t,
+                            loc: self.2.clone()
                         }
                     } else {
                         let r = core::LLVMBuildICmp(env.builder, match &op.0 {
@@ -276,10 +347,14 @@ impl Expression {
                             invalid => panic!("didnt expect op {invalid:?}")
                         }, va.llvm_value, vb.llvm_value, c_str_ptr!(ret_name.unwrap_or(String::new())));
                         let loc = op.1.clone();
-                        Variable {
-                            ast_type: Type(Ty::Single(vec![], Item::new(&vec!["bool"], loc.clone())), loc.clone()),
-                            llvm_type: core::LLVMInt1Type(),
-                            llvm_value: r,
+                        ReturnInfo {
+                            variable: Some(Variable {
+                                ast_type: Type(Ty::Single(vec![], Item::new(&vec!["bool"], loc.clone())), loc.clone()),
+                                llvm_type: core::LLVMInt1Type(),
+                                llvm_value: r,
+                            }),
+                            return_t: ra.return_t,
+                            loc: self.2.clone()
                         }
                     }
                 }
@@ -296,28 +371,37 @@ impl Expression {
 
 impl Block {
     pub(crate) fn build(&self, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<ReturnInfo, LithiaError> {
+        let mut ret_t: Option<(Type, LLVMTypeRef)> = None;
         for (i, stmt) in self.0.iter().enumerate() {
             let r = stmt.0.build(env, ret_name.clone())?;
+            if let Some(rt) = &r.return_t {
+                if let Some(rtt) = &ret_t {
+                    rt.0.satisfies_or_err(&rtt.0, TySat::Yes)?;
+                } else { ret_t = r.return_t.clone() }
+            }
             if let Expr::Return(_) = stmt.0.1 {
-                let mut ret = (r, stmt.2.clone());
-                std::mem::swap(&mut ret.0.ast_type.1, &mut ret.1);
-                ret.ast_type = Type(Ty::Returns(ret.ast_type), self.1.end().span());
-                return Ok(ret)
+                return Ok(ReturnInfo {
+                    variable: None,
+                    return_t: r.return_t,
+                    loc: stmt.2.clone(),
+                })
             }
             if !stmt.1 && !stmt.0.1.is_block_like() {
-                let mut ret = (r, stmt.2.clone());
-                std::mem::swap(&mut ret.0.ast_type.1, &mut ret.1);
                 if self.0.len() != i + 1 {
                     return Err(LithiaET::CompilationError(format!("returning expression needs to be at end of block")).at(stmt.2.clone()).when("compiling block"))
                 }
-                return Ok(ret)
+                return Ok(ReturnInfo {
+                    variable: r.variable,
+                    return_t: r.return_t,
+                    loc: stmt.2.clone(),
+                })
             }
         }
-        unsafe {Ok((Variable {
-            ast_type: Type(Ty::Tuple(vec![]), self.1.end().span()),
-            llvm_type: core::LLVMVoidType(),
-            llvm_value: *[].as_mut_ptr(),
-        }, self.1.clone()))}
+        Ok(ReturnInfo {
+            variable: None,
+            return_t: None,
+            loc: self.1.clone(),
+        })
     }
 }
 
@@ -358,8 +442,7 @@ impl Type {
                         core::LLVMVoidType()
                     }
                 },
-                Ty::Signature(_, _, _, _) => unimplemented!("signature types to llvm type not implemented yet"),
-                Ty::Returns(_) => panic!("'returns' is a meta type, cannot create!")
+                Ty::Signature(_, _, _, _) => unimplemented!("signature types to llvm type not implemented yet")
             })
         }
     }

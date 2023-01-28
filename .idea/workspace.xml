@@ -16,24 +16,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7d76083a-46e7-4914-8e87-b068d29779f6" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/examples/testing/primitive_if.li" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast/create_patterns.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/create_patterns.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/testing/fibonacci_recursive.li" beforeDir="false" afterPath="$PROJECT_DIR$/examples/testing/fibonacci_recursive.li" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ast/code_printer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/code_printer.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ast/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast/parser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/parser.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast/patterns/conditional.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/patterns/conditional.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast/patterns/dynamic.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/patterns/dynamic.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ast/patterns/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/patterns/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast/patterns/simple.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/patterns/simple.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ast/types_impl.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/types_impl.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/compiler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/compiler.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/error.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/llvm/gen_flow_expressions.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/gen_flow_expressions.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/llvm/gen_llvm.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/gen_llvm.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/llvm_ast.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/llvm/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/source/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/source/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tokens/tokenizer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/tokens/tokenizer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/util/indexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/util/indexer.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -168,7 +161,7 @@
       <workItem from="1674249885694" duration="1255000" />
       <workItem from="1674333207522" duration="30000" />
       <workItem from="1674894356214" duration="302000" />
-      <workItem from="1674896482338" duration="776000" />
+      <workItem from="1674896482338" duration="4980000" />
     </task>
     <servers />
   </component>
