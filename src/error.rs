@@ -6,13 +6,13 @@ use crate::source::span::Span;
 use crate::tokens::{Literal, NumLit};
 
 #[derive(Debug)]
-pub(crate) struct ParseError {
-    et: ParseET,
+pub(crate) struct LithiaError {
+    et: LithiaET,
     locs: Vec<Span>,
     context: Vec<String>
 }
 
-impl ParseError {
+impl LithiaError {
     pub(crate) fn when<T: Into<String>>(mut self, reason: T) -> Self{
         self.context.push(reason.into());
         self
@@ -31,14 +31,14 @@ impl ParseError {
     }
 }
 
-impl From<std::io::Error> for ParseError {
+impl From<std::io::Error> for LithiaError {
     fn from(error: std::io::Error) -> Self {
-        ParseET::IOError(error).error().when("doing IO operation")
+        LithiaET::IOError(error).error().when("doing IO operation")
     }
 }
 
 #[derive(Debug)]
-pub(crate) enum ParseET {
+pub(crate) enum LithiaET {
     EOF,
     IOError(std::io::Error),
     TokenizationError(String),
@@ -53,23 +53,23 @@ pub(crate) enum ParseET {
     UnsafeError(String),
 }
 
-impl ParseET {
-    pub(crate) fn error(self) -> ParseError {
-        ParseError {
+impl LithiaET {
+    pub(crate) fn error(self) -> LithiaError {
+        LithiaError {
             et: self,
             locs: vec![],
             context: vec![]
         }
     }
-    pub(crate) fn at(self, loc: Span) -> ParseError {
-        ParseError {
+    pub(crate) fn at(self, loc: Span) -> LithiaError {
+        LithiaError {
             et: self,
             locs: vec![loc],
             context: vec![]
         }
     }
-    pub(crate) fn ats(self, locs: Vec<Span>) -> ParseError {
-        ParseError {
+    pub(crate) fn ats(self, locs: Vec<Span>) -> LithiaError {
+        LithiaError {
             et: self,
             locs,
             context: vec![]
@@ -77,14 +77,14 @@ impl ParseET {
     }
 }
 
-impl Display for ParseError {
+impl Display for LithiaError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}{}",
            match &self.et {
-               ParseET::EOF => format!("Input Error:\n    reached end of file"),
-               ParseET::IOError(e) => format!("IO Error:\n    {}", e),
-               ParseET::TokenizationError(e) => format!("Tokenization Error:\n    {}", e),
-               ParseET::LiteralError(lit, e) => format!("{} literal Error:\n    {}", match lit {
+               LithiaET::EOF => format!("Input Error:\n    reached end of file"),
+               LithiaET::IOError(e) => format!("IO Error:\n    {}", e),
+               LithiaET::TokenizationError(e) => format!("Tokenization Error:\n    {}", e),
+               LithiaET::LiteralError(lit, e) => format!("{} literal Error:\n    {}", match lit {
                    Literal::String(_) => "String",
                    Literal::Char(_) => "Char",
                    Literal::Number(NumLit::Integer(_), _) => "Integer",
@@ -92,16 +92,16 @@ impl Display for ParseError {
                    Literal::Bool(_) => "Float",
                    Literal::Array(..) => "Array"
                }, e),
-               ParseET::ParsingError(e) => format!("Parsing Error:\n    {}", e),
-               ParseET::CompilationError(e) => format!("Compilation Error:\n    {}", e),
-               ParseET::AlreadyDefinedError(what, name) =>
+               LithiaET::ParsingError(e) => format!("Parsing Error:\n    {}", e),
+               LithiaET::CompilationError(e) => format!("Compilation Error:\n    {}", e),
+               LithiaET::AlreadyDefinedError(what, name) =>
                    format!("Multiple definitions Error:\n    {} {} was already defined",
                    what, name),
-               ParseET::VariableNotFound(ident) => format!("Name Error:\n    could not find variable {ident}"),
-               ParseET::TypeError(expected, found) => format!("Type Error:\n    expected {} found {}:", expected.print(), found.print()),
-               ParseET::CastError(expected, found) => format!("Cast Error:\n    cannot cast from {} to {}:", expected.print(), found.print()),
-               ParseET::TagError(err) => format!("Compiler Flag Error:\n    {err}"),
-               ParseET::UnsafeError(thing) => format!("Unsafe Context Error:\n    cannot use {thing} in safe context.\n    tag the expr or func with #[unsafe]"),
+               LithiaET::VariableNotFound(ident) => format!("Name Error:\n    could not find variable {ident}"),
+               LithiaET::TypeError(expected, found) => format!("Type Error:\n    expected {} found {}:", expected.print(), found.print()),
+               LithiaET::CastError(expected, found) => format!("Cast Error:\n    cannot cast from {} to {}:", expected.print(), found.print()),
+               LithiaET::TagError(err) => format!("Compiler Flag Error:\n    {err}"),
+               LithiaET::UnsafeError(thing) => format!("Unsafe Context Error:\n    cannot use {thing} in safe context.\n    tag the expr or func with #[unsafe]"),
            },
            if self.context.len() > 0 {
                format!("\n    while {}", self.context.join("\n    while "))
@@ -129,7 +129,7 @@ pub(crate) trait OnParseErr{
     fn e_at_add(self, loc: Span) -> Self;
 }
 
-impl<T> OnParseErr for Result<T, ParseError> {
+impl<T> OnParseErr for Result<T, LithiaError> {
     fn e_when<S: Into<String>>(self, reason: S) -> Self {
         self.map_err(|err| err.when(reason))
     }

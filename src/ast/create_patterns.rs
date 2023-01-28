@@ -4,7 +4,7 @@ use crate::ast::patterns::{Consumer, Pat, Pattern};
 use crate::ast::patterns::conditional::{While, Match, Succeed, Fail, IsOk, Optional};
 use crate::ast::patterns::dynamic::{Latent, Mapping};
 use crate::ast::patterns::simple::{ExpectIdent, ExpectParticle, ExpectParticleExact, GetGluedParticle, GetIdent, GetLiteral, GetNext, GetParticle};
-use crate::error::{ParseET};
+use crate::error::{LithiaET};
 use crate::source::span::Span;
 use crate::tokens::{Literal, NumLit, NumLitTy};
 
@@ -38,16 +38,16 @@ pub(crate) fn build_patterns() -> Patterns {
                         if th.as_ref().map(|t| t == &NumLitTy::UPtr).unwrap_or(true) {
                             Ok(Ty::Array(Box::new(ty), c as usize))
                         } else {
-                            Err(ParseET::LiteralError(count.0, format!("expected uptr, found {}", th.unwrap())).at(loc).when("parsing array type"))
+                            Err(LithiaET::LiteralError(count.0, format!("expected uptr, found {}", th.unwrap())).at(loc).when("parsing array type"))
                         }
                     } else {
-                        Err(ParseET::LiteralError(count.0, "expected uptr".to_string()).at(count.1).when("parsing array type"))
+                        Err(LithiaET::LiteralError(count.0, "expected uptr".to_string()).at(count.1).when("parsing array type"))
                     }
                 } else {
                     Ok(Ty::Slice(Box::new(ty)))
                 }
             }).pat()),
-        (Succeed(item.clone().map_res(|t, loc| if t == Item::new(&vec!["as"], loc){Err(ParseET::ParsingError(String::new()).error())} else {Ok(())}).pat()).pat(), item.clone().map(|item, _| Ty::Single(vec![], item)).pat()),
+        (Succeed(item.clone().map_res(|t, loc| if t == Item::new(&vec!["as"], loc){Err(LithiaET::ParsingError(String::new()).error())} else {Ok(())}).pat()).pat(), item.clone().map(|item, _| Ty::Single(vec![], item)).pat()),
     ]), |ty, loc| Type(ty, loc)));
     let (tag_args, tag_arg_finalizer) = Latent::new();
     let tag = Pattern::inline((
@@ -99,7 +99,7 @@ pub(crate) fn build_patterns() -> Patterns {
         ">=" => Op::GE,
         "==" => Op::EQ,
         "!=" => Op::NE,
-        invalid => return Err(ParseET::ParsingError(format!("invalid op {invalid}")).at(loc))
+        invalid => return Err(LithiaET::ParsingError(format!("invalid op {invalid}")).at(loc))
     })), |op, loc| Operator(op, loc));
     let (expression, expression_finalizer) = Latent::new();
     let let_create = Pattern::named("variable creation", (
@@ -231,22 +231,22 @@ pub(crate) fn build_patterns() -> Patterns {
                         f.tags = tags;
                         let l = f.name.1.clone();
                         if constants.contains_key(&f.name.0){
-                            return Err(ParseET::AlreadyDefinedError("constant".to_string(), f.name.0).ats(vec![l, f.name.1]))
+                            return Err(LithiaET::AlreadyDefinedError("constant".to_string(), f.name.0).ats(vec![l, f.name.1]))
                         }
                         if let Some(f) = functions.insert(f.name.0.clone(), f){
-                            return Err(ParseET::AlreadyDefinedError("function".to_string(), f.name.0).ats(vec![l, f.name.1]))
+                            return Err(LithiaET::AlreadyDefinedError("function".to_string(), f.name.0).ats(vec![l, f.name.1]))
                         }
                     },
                     ModuleContent::Const(c) => {
                         if tags.len() > 0 {
-                            return Err(ParseET::TagError("tags not applicable for consts".to_string()).at(c.name.1.clone()))
+                            return Err(LithiaET::TagError("tags not applicable for consts".to_string()).at(c.name.1.clone()))
                         }
                         let l = c.name.1.clone();
                         if functions.contains_key(&c.name.0){
-                            return Err(ParseET::AlreadyDefinedError("function".to_string(), c.name.0).ats(vec![l, c.name.1]))
+                            return Err(LithiaET::AlreadyDefinedError("function".to_string(), c.name.0).ats(vec![l, c.name.1]))
                         }
                         if let Some(c) = constants.insert(c.name.0.clone(), c){
-                            return Err(ParseET::AlreadyDefinedError("constant".to_string(), c.name.0).ats(vec![l, c.name.1]))
+                            return Err(LithiaET::AlreadyDefinedError("constant".to_string(), c.name.0).ats(vec![l, c.name.1]))
                         }
                     }
                 };

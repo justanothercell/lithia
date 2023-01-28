@@ -1,7 +1,7 @@
 use std::process::Command;
 use crate::ast::code_printer::CodePrinter;
 use crate::ast::parser::parse;
-use crate::error::ParseError;
+use crate::error::LithiaError;
 use crate::llvm::gen_llvm::{build_exe, build_llvm_ir};
 use crate::source::Source;
 use crate::tokens::tokenizer::tokenize;
@@ -10,7 +10,7 @@ pub(crate) struct Arguments{
 
 }
 
-pub(crate) fn compile(args: Arguments) -> Result<(), ParseError>{
+pub(crate) fn compile(args: Arguments) -> Result<(), LithiaError>{
     let source = Source::from_file("examples/testing/fibonacci_recursive.li")?;
     let tokens = tokenize(source)?;
     println!("{tokens:?}");

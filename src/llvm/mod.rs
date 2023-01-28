@@ -9,7 +9,7 @@ use llvm_sys::{prelude, core};
 use llvm_sys::prelude::{LLVMTypeRef, LLVMValueRef};
 use crate::ast::Type;
 use crate::ast::types_impl::TySat::No;
-use crate::error::{ParseError, ParseET};
+use crate::error::{LithiaError, LithiaET};
 use crate::source::span::Span;
 
 #[macro_export]
@@ -50,14 +50,24 @@ pub(crate) struct StackEnv {
 pub(crate) struct ReturnInfo{
     variable: Option<Variable>,
     return_t: Option<(Type, LLVMTypeRef)>,
-    loc: Option<Span>
+    loc: Span
+}
+
+impl ReturnInfo {
+    pub(crate) fn resolve_var(&self) -> Result<Variable, LithiaError>{
+        if let Some(v) = &self.variable {
+            Ok(v.clone())
+        } else {
+            Err(LithiaET::CompilationError(format!("expression does not resolve to a non-void value")).at(loc))
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct Variable{
     ast_type: Type,
-    llvm_type: prelude::LLVMTypeRef,
-    llvm_value: prelude::LLVMValueRef
+    llvm_type: LLVMTypeRef,
+    llvm_value: LLVMValueRef
 }
 
 impl LLVMModGenEnv{
@@ -95,7 +105,7 @@ impl LLVMModGenEnv{
         self.stack.pop();
     }
 
-    pub(crate) fn get_var(&self, ident: &str, loc: Option<&Span>) -> Result<Variable, ParseError>{
+    pub(crate) fn get_var(&self, ident: &str, loc: Option<&Span>) -> Result<Variable, LithiaError>{
         for frame in self.stack.iter().rev(){
             if let Some(v) = frame.vars.get(ident){
                 return Ok(v.clone())
@@ -105,7 +115,7 @@ impl LLVMModGenEnv{
         if let Some(v) = self.globals.get(ident){
             Ok(v.clone())
         } else {
-            let et = ParseET::VariableNotFound(ident.to_string());
+            let et = LithiaET::VariableNotFound(ident.to_string());
             Err(match loc {
                 None => et.error(),
                 Some(loc) => et.at(loc.clone())
@@ -113,7 +123,7 @@ impl LLVMModGenEnv{
         }
     }
 
-    pub(crate) fn finish(self) -> Result<prelude::LLVMModuleRef, ParseError>{
+    pub(crate) fn finish(self) -> Result<prelude::LLVMModuleRef, LithiaError>{
         unsafe {
             let fun = self.get_var("main", None)?;
             core::LLVMBuildCall2(self.builder, fun.llvm_type, fun.llvm_value, [].as_mut_ptr(), 0 as c_uint, c_str_ptr!(""));

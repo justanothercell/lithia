@@ -2,7 +2,7 @@ use std::cmp::{min, Ordering};
 use std::ops::{BitAnd, BitOr};
 use crate::ast::{Item, Ty, Type};
 use crate::ast::code_printer::CodePrinter;
-use crate::error::{ParseError, ParseET};
+use crate::error::{LithiaError, LithiaET};
 use crate::source::span::Span;
 
 #[derive(Eq, PartialEq, PartialOrd, Clone, Debug)]
@@ -70,19 +70,19 @@ impl Type {
             }
         }
     }
-    pub(crate) fn satisfies_or_err(&self, other: &Type, sat: TySat) -> Result<(), ParseError> {
+    pub(crate) fn satisfies_or_err(&self, other: &Type, sat: TySat) -> Result<(), LithiaError> {
         let s = self.satisfies(other);
         if s == sat {
             Ok(())
         } else {
-            Err(ParseET::TypeError(other.clone(), self.clone()).ats(vec![self.1.clone(), other.1.clone()]))
+            Err(LithiaET::TypeError(other.clone(), self.clone()).ats(vec![self.1.clone(), other.1.clone()]))
         }
     }
-    pub(crate) fn equals_or_err(&self, other: &Type) -> Result<(), ParseError> {
+    pub(crate) fn equals_or_err(&self, other: &Type) -> Result<(), LithiaError> {
         if self == other {
             Ok(())
         } else {
-            Err(ParseET::TypeError(other.clone(), self.clone()).ats(vec![self.1.clone(), other.1.clone()]))
+            Err(LithiaET::TypeError(other.clone(), self.clone()).ats(vec![self.1.clone(), other.1.clone()]))
         }
     }
     pub(crate) fn is_return(&self) -> bool {

@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::error::{ParseError};
+use crate::error::{LithiaError};
 use crate::source::span::Span;
 use crate::tokens::TokIter;
 
@@ -36,7 +36,7 @@ impl<T: Consumer + 'static, Out: 'static> Pattern<T, Out> {
 impl<T: Consumer, Out> Consumer for Pattern<T, Out> {
     type Output = Out;
 
-    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, LithiaError> {
         let mut start = iter.here();
         let out = self.consumer.consume(iter);
         if out.is_err() && self.name.is_some() {
@@ -49,21 +49,21 @@ impl<T: Consumer, Out> Consumer for Pattern<T, Out> {
 
 impl<Out> Consumer for Rc<Box<dyn Consumer<Output=Out>>> {
     type Output = Out;
-    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, LithiaError> {
         self.as_ref().consume(iter)
     }
 }
 
 impl<Out, T: Consumer<Output=Out>> Consumer for Rc<T> {
     type Output = Out;
-    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError> {
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, LithiaError> {
         self.as_ref().consume(iter)
     }
 }
 
 pub(crate) trait Consumer {
     type Output;
-    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, ParseError>;
+    fn consume(&self, iter: &mut TokIter) -> Result<Self::Output, LithiaError>;
     fn pat(self) -> Pat<Self::Output> where Self: Sized + 'static {
         Rc::new(Box::new(self))
     }

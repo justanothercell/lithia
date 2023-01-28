@@ -1,10 +1,10 @@
 use crate::ast::{Block, Expression};
 use crate::c_str_ptr;
-use crate::error::ParseError;
-use crate::llvm::{LLVMModGenEnv, Variable};
+use crate::error::LithiaError;
+use crate::llvm::{LLVMModGenEnv, ReturnInfo, Variable};
 use llvm_sys::core;
 
-pub(crate) fn compile_if(cond: &Expression, body: &Block, else_body: &Block, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<Variable, ParseError> {
+pub(crate) fn compile_if(cond: &Expression, body: &Block, else_body: &Block, env: &mut LLVMModGenEnv, ret_name: Option<String>) -> Result<ReturnInfo, LithiaError> {
     let then_block = unsafe { core::LLVMAppendBasicBlock(env.function.unwrap(), c_str_ptr!("then")) };
     let else_block = unsafe { core::LLVMAppendBasicBlock(env.function.unwrap(), c_str_ptr!("else")) };
     let continue_block = unsafe { core::LLVMAppendBasicBlock(env.function.unwrap(), c_str_ptr!("ifcont")) };
@@ -25,7 +25,7 @@ pub(crate) fn compile_if(cond: &Expression, body: &Block, else_body: &Block, env
         }
         core::LLVMPositionBuilderAtEnd(env.builder, else_block); // START ELSE CLAUSE
     };
-    let else_body_r = body.build(env, None)?.0;
+    let else_body_r = else_body.build(env, None)?.0;
     unsafe {
         if !else_body_r.ast_type.is_return() {
             core::LLVMBuildStore(env.builder, else_body_r.0.llvm_value, alloc_ret);

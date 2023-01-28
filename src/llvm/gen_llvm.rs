@@ -3,16 +3,16 @@ use std::process::Command;
 use llvm_sys::{bit_writer, prelude, core};
 use crate::ast::Module;
 use crate::c_str_ptr;
-use crate::error::ParseError;
+use crate::error::LithiaError;
 use crate::llvm::LLVMModGenEnv;
 
-pub(crate) fn build_llvm_ir(module: Module) -> Result<prelude::LLVMModuleRef, ParseError>{
+pub(crate) fn build_llvm_ir(module: Module) -> Result<prelude::LLVMModuleRef, LithiaError>{
     let mut env = LLVMModGenEnv::new(module.name.0.clone());
     module.build(&mut env)?;
     env.finish()
 }
 
-pub(crate) fn build_exe<P: AsRef<Path>>(module: prelude::LLVMModuleRef, llvm_root: P, bitcode_file: P, exe_file: P, dump_ir: bool, disassemble: bool) -> Result<(), ParseError>{
+pub(crate) fn build_exe<P: AsRef<Path>>(module: prelude::LLVMModuleRef, llvm_root: P, bitcode_file: P, exe_file: P, dump_ir: bool, disassemble: bool) -> Result<(), LithiaError>{
     let llvm_root = llvm_root.as_ref().to_string_lossy().to_string();
     let bitcode_file = bitcode_file.as_ref().to_string_lossy().to_string();
     let exe_file = exe_file.as_ref().to_string_lossy().to_string();

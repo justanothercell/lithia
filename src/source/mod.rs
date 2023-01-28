@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{Read};
 use std::path::Path;
 use std::rc::Rc;
-use crate::error::ParseError;
+use crate::error::LithiaError;
 use crate::util::indexer::{Indexable, Indexer};
 use crate::source::span::Span;
 
@@ -40,7 +40,7 @@ impl Debug for Source {
 }
 
 impl Source {
-    pub(crate) fn from_file<P: AsRef<Path> + Display>(path: P) -> Result<Self, ParseError> {
+    pub(crate) fn from_file<P: AsRef<Path> + Display>(path: P) -> Result<Self, LithiaError> {
         Ok(Self {
             st: SourceType::File(path.to_string()),
             source: {

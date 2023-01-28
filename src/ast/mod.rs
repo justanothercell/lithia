@@ -6,7 +6,7 @@ pub(crate) mod types_impl;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
-use crate::error::ParseError;
+use crate::error::LithiaError;
 use crate::source::span::Span;
 use crate::tokens::Literal;
 
@@ -155,7 +155,7 @@ impl Ty {
 }
 
 impl AstLiteral {
-    pub(crate) fn get_type(&self) -> Result<Type, ParseError>{
+    pub(crate) fn get_type(&self) -> Result<Type, LithiaError>{
         Ok(match &self.0 {
             Literal::String(s) => Type(Ty::Array(Box::new(Type(Ty::Single(vec![], Item::new(&vec!["u8"], self.1.clone())), self.1.clone())), s.len() + 1), self.1.clone()),
             Literal::Char(_) => Type(Ty::Single(vec![], Item::new(&vec!["u8"], self.1.clone())), self.1.clone()),

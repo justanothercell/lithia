@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::error::{ParseError, ParseET};
+use crate::error::{LithiaError, LithiaET};
 use crate::source::span::Span;
 
 pub(crate) trait Indexable {
@@ -24,9 +24,9 @@ impl<T: Indexable> Indexer<T> {
         }
     }
 
-    pub(crate) fn get(&self, index: usize) -> Result<T::Item, ParseError> {
+    pub(crate) fn get(&self, index: usize) -> Result<T::Item, LithiaError> {
         if index >= self.len() {
-            Err(ParseET::EOF.at(self.here()).when(format!("trying to get {}", T::ITEM_NAME)))
+            Err(LithiaET::EOF.at(self.here()).when(format!("trying to get {}", T::ITEM_NAME)))
         }
         else {
             Ok(self.list.get(index))
@@ -41,7 +41,7 @@ impl<T: Indexable> Indexer<T> {
         self.list.len() - self.index
     }
 
-    pub(crate) fn this(&self) -> Result<T::Item, ParseError> {
+    pub(crate) fn this(&self) -> Result<T::Item, LithiaError> {
         self.get(self.index)
     }
 
@@ -57,11 +57,11 @@ impl<T: Indexable> Indexer<T> {
         self.index += 1;
     }
 
-    pub(crate) fn peek(&self) -> Result<T::Item, ParseError>{
+    pub(crate) fn peek(&self) -> Result<T::Item, LithiaError>{
         self.get(self.index + 1)
     }
 
-    pub(crate) fn peekn(&self, n: isize) -> Result<T::Item, ParseError>{
+    pub(crate) fn peekn(&self, n: isize) -> Result<T::Item, LithiaError>{
         self.get((self.index as isize + n) as usize)
     }
 }
