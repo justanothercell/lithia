@@ -49,6 +49,7 @@ pub(crate) enum Expr {
     Block(Block),
     Expr(Box<Expression>),
     If(Box<Expression>, Block, Block),
+    Loop()
     FuncCall(Item, Vec<Expression>),
     BinaryOp(Operator, Box<Expression>, Box<Expression>),
     UnaryOp(Operator, Box<Expression>),

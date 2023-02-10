@@ -110,3 +110,7 @@ pub(crate) fn compile_if(cond: &Expression, body: &Block, else_body: &Block, env
         loc: cond.2.clone(),
     })
 }
+
+pub(crate) fn compile_loop(){
+
+}
