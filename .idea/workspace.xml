@@ -17,8 +17,6 @@
   <component name="ChangeListManager">
     <list default="true" id="7d76083a-46e7-4914-8e87-b068d29779f6" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/llvm/gen_flow_expressions.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/llvm/gen_flow_expressions.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -90,10 +88,10 @@
     <configuration name="Run lithia" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="command" value="run --package lithia --bin lithia" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
       <option name="requiredFeatures" value="true" />
       <option name="allFeatures" value="false" />
-      <option name="emulateTerminal" value="false" />
       <option name="withSudo" value="false" />
       <option name="buildTarget" value="REMOTE" />
       <option name="backtrace" value="SHORT" />
@@ -157,6 +155,9 @@
       <workItem from="1674991416602" duration="18000" />
       <workItem from="1675961851152" duration="593000" />
       <workItem from="1676041987785" duration="771000" />
+      <workItem from="1676144163204" duration="591000" />
+      <workItem from="1676226806958" duration="583000" />
+      <workItem from="1676745713044" duration="151000" />
     </task>
     <servers />
   </component>
